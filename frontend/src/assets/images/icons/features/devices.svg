@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M24 12C24 9.79086 25.7909 8 28 8H36C38.2091 8 40 9.79086 40 12V36C40 38.2091 38.2091 40 36 40H28C25.7909 40 24 38.2091 24 36V12Z" stroke="currentColor" stroke-width="2"/>
+  <path d="M8 16C8 13.7909 9.79086 12 12 12H16C18.2091 12 20 13.7909 20 16V32C20 34.2091 18.2091 36 16 36H12C9.79086 36 8 34.2091 8 32V16Z" stroke="currentColor" stroke-width="2"/>
+  <circle cx="32" cy="34" r="2" fill="currentColor"/>
+  <rect x="14" y="16" width="4" height="16" rx="1" fill="currentColor"/>
+</svg>

@@ -1,0 +1,3 @@
+"""
+AccessShare Backend Application
+"""
