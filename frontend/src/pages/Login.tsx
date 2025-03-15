@@ -22,18 +22,22 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await login({ email, password });
+      console.log('Login page: Submitting login request for', email);
+      const userData = await login({ email, password });
+      console.log('Login page: Login successful, user data:', userData);
+      
       toast.dismiss(loadingToast);
       toast.success('Welcome back!', { 
         icon: '👋',
         duration: 3000 
       });
       
-      // Delay navigation slightly to allow the user to see the success message
-      setTimeout(() => {
-        navigate('/');
-      }, 1000);
+      // Force immediate navigation to home instead of waiting for auth check
+      console.log('Login page: Redirecting to home page immediately');
+      navigate('/');
+      
     } catch (error: any) {
+      console.error('Login page: Login failed:', error);
       toast.dismiss(loadingToast);
       
       const message = error.message || 'Login failed. Please try again.';
@@ -54,7 +58,7 @@ const Login: React.FC = () => {
         });
       }
       
-      console.error('Login error:', error);
+      console.error('Login error details:', error);
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +79,7 @@ const Login: React.FC = () => {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
+          <div>
             <div className="mb-4">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email address
@@ -93,7 +97,7 @@ const Login: React.FC = () => {
                 disabled={isLoading}
               />
             </div>
-            <div>
+            <div className="mb-6">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>

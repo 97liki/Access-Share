@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
@@ -68,15 +68,15 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         )
 
 @router.get("/me", response_model=UserResponse)
-def get_current_user(email: str = Depends(lambda x: x.headers.get("X-User-Email")), db: Session = Depends(get_db)):
+def get_current_user(db: Session = Depends(get_db), x_user_email: str = Header(None, alias="X-User-Email")):
     """Get current user details"""
-    if not email:
+    if not x_user_email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
     
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == x_user_email).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

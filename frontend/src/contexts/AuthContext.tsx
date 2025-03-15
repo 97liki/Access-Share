@@ -10,7 +10,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<User>;
   register: (data: { email: string; username: string; password: string }) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -22,13 +22,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [authCheckTimestamp, setAuthCheckTimestamp] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
       setIsLoading(true);
       const userEmail = localStorage.getItem('userEmail');
       
+      console.log('AuthContext: Checking authentication status. User email in localStorage:', userEmail);
+      
       if (!userEmail) {
+        console.log('AuthContext: No user email found in localStorage, user is not authenticated');
         setUser(null);
         setIsAuthenticated(false);
         setIsLoading(false);
@@ -36,11 +40,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
+        console.log('AuthContext: Verifying user with backend');
         const userData = await authApi.me();
+        console.log('AuthContext: User verification successful:', userData);
         setUser(userData);
         setIsAuthenticated(true);
       } catch (error) {
-        console.error('Authentication check failed:', error);
+        console.error('AuthContext: Authentication check failed:', error);
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem('userEmail');
@@ -50,15 +56,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     checkAuth();
-  }, []);
+  }, [authCheckTimestamp]); // Re-run when this timestamp changes
 
   const login = async (credentials: { email: string; password: string }) => {
     try {
+      console.log('AuthContext: Logging in with credentials', credentials.email);
       const userData = await authApi.login(credentials);
+      console.log('AuthContext: Login successful, userData:', userData);
+      
+      // Set user state
       setUser(userData);
+      
+      // Set authentication status
       setIsAuthenticated(true);
+      
+      // Store email in localStorage for persistence
       localStorage.setItem('userEmail', userData.email);
+      console.log('AuthContext: Authentication state updated - Authenticated:', true);
+      
+      // Trigger a re-verification of auth status
+      setAuthCheckTimestamp(Date.now());
+      
+      return userData; // Return the user data for the component
     } catch (error) {
+      console.error('AuthContext: Login error:', error);
       // Let the component handle the error
       throw error;
     }

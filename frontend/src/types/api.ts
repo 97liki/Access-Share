@@ -29,16 +29,16 @@ export interface Activity {
 export interface CaregiverListing {
   id: number;
   caregiver_id: number;
-  service_type: ServiceType;
-  experience_level: ExperienceLevel;
+  service_type: string;
+  experience_level: string;
   location: string;
   hourly_rate: number;
   description: string;
   contact_info: string;
-  availability_status: AvailabilityStatus;
+  availability_status: string;
   rating?: number;
   review_count?: number;
-  caregiver: User;
+  caregiver?: User;
   created_at: string;
   updated_at: string;
 }
@@ -94,13 +94,17 @@ export interface BloodRequest {
 // Assistive Device Types
 export interface DeviceListing {
   id: number;
+  device_name: string;
   device_type: string;
-  title: string;
+  title?: string;
   description: string;
-  condition: 'new' | 'like_new' | 'good' | 'fair';
+  condition: string;
   location: string;
-  availability: 'available' | 'pending' | 'unavailable';
-  user: User;
+  contact_info: string;
+  availability?: string;
+  available?: string;
+  user?: User;
+  donor_id?: number;
   created_at: string;
   updated_at: string;
 }
@@ -189,7 +193,9 @@ export interface BloodDonation {
   blood_type: string;
   location: string;
   contact_number: string;
-  available_until: string;
+  available_until?: string;
+  urgency?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
   user?: User;

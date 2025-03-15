@@ -60,7 +60,17 @@ const Navbar = () => {
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    location.pathname === link.href || location.pathname.startsWith(`${link.href}/`) 
+                      ? 'text-primary-600 bg-primary-50' 
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'
+                  }`}
+                  onClick={(e) => {
+                    // If we're already on the page, prevent default to avoid unnecessary re-renders
+                    if (location.pathname === link.href) {
+                      e.preventDefault();
+                    }
+                  }}
                 >
                   {link.name}
                 </Link>

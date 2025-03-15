@@ -70,6 +70,18 @@ const AnimatedRoutes = () => {
         <Route path="/blood-donation" element={<BloodDonation />} />
         <Route path="/caregivers" element={<Caregivers />} />
 
+        {/* Additional sub-routes for blood donation */}
+        <Route path="/blood-donation/donate" element={<BloodDonation />} />
+        <Route path="/blood-donation/request" element={<BloodDonation />} />
+
+        {/* Additional sub-routes for assistive devices */}
+        <Route path="/devices/donate" element={<AssistiveDevices />} />
+        <Route path="/devices/request" element={<AssistiveDevices />} />
+
+        {/* Additional sub-routes for caregivers */}
+        <Route path="/caregivers/offer" element={<Caregivers />} />
+        <Route path="/caregivers/find" element={<Caregivers />} />
+
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Home />} />
