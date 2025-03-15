@@ -15,8 +15,9 @@ import loadingIllustration from '../assets/images/illustrations/loading.svg';
 interface DonationFormData {
   blood_type: string;
   location: string;
+  urgency: 'high' | 'medium' | 'low';
   contact_number: string;
-  available_until: string;
+  notes?: string;
 }
 
 const BloodDonation = () => {
@@ -53,10 +54,10 @@ const BloodDonation = () => {
   const createMutation = useMutation({
     mutationFn: (data: DonationFormData) => bloodApi.createBloodDonation({
       blood_type: data.blood_type,
-      urgency: 'medium',
+      urgency: data.urgency || 'medium',
       location: data.location,
       contact_number: data.contact_number,
-      notes: `Available Until: ${data.available_until}`,
+      notes: data.notes
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blood-donations'] });
@@ -67,7 +68,13 @@ const BloodDonation = () => {
     },
     onError: (error: any) => {
       console.error('Blood donation creation error:', error);
-      if (error.response?.status === 401) {
+      
+      // Handle our new error format with friendly messages
+      if (error.isServerError) {
+        toast.error(error.message || 'A server error occurred. Please try again later.');
+      } else if (error.isNetworkError) {
+        toast.error(error.message || 'Network error. Please check your connection and try again.');
+      } else if (error.response?.status === 401) {
         toast.error('You must be logged in to donate blood. Please sign in.');
         navigate('/login');
       } else if (error.response?.status === 422) {
@@ -93,12 +100,14 @@ const BloodDonation = () => {
     }
     
     const formData = new FormData(e.currentTarget);
+    const availableUntil = formData.get('available_until');
     
     createMutation.mutate({
       blood_type: formData.get('blood_type') as string,
       location: formData.get('location') as string,
       contact_number: formData.get('contact_number') as string,
-      available_until: formData.get('available_until') as string,
+      urgency: (formData.get('urgency') as 'high' | 'medium' | 'low') || 'medium',
+      notes: availableUntil ? `Available Until: ${availableUntil}` : undefined
     });
   };
 
@@ -265,6 +274,22 @@ const BloodDonation = () => {
                       <option value="AB-">AB-</option>
                       <option value="O+">O+</option>
                       <option value="O-">O-</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="urgency" className="block text-sm font-medium text-gray-700">
+                      Urgency Level
+                    </label>
+                    <select
+                      id="urgency"
+                      name="urgency"
+                      required
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                    >
+                      <option value="high">High</option>
+                      <option value="medium" selected>Medium</option>
+                      <option value="low">Low</option>
                     </select>
                   </div>
 

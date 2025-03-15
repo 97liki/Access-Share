@@ -28,22 +28,56 @@ export default function CreateCaregiver() {
     location: '',
     hourly_rate: 0,
     description: '',
+    contact_info: '',
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: Partial<CaregiverListing>) => caregiversApi.createCaregiver(data),
+    mutationFn: (data: {
+      service_type: string;
+      experience_level: string;
+      location: string;
+      hourly_rate: number;
+      description: string;
+      contact_info: string;
+      availability_status?: string;
+    }) => caregiversApi.createCaregiver(data),
     onSuccess: () => {
       toast.success('Caregiver profile created successfully!');
       navigate('/caregivers');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create caregiver profile');
+      console.error('Caregiver creation error:', error);
+      
+      // Handle our new error format with friendly messages
+      if (error.isServerError) {
+        toast.error(error.message || 'A server error occurred. Please try again later.');
+      } else if (error.isNetworkError) {
+        toast.error(error.message || 'Network error. Please check your connection and try again.');
+      } else if (error.response?.status === 401) {
+        toast.error('You must be logged in to register as a caregiver. Please sign in.');
+        navigate('/login');
+      } else if (error.response?.status === 422) {
+        toast.error('Please check your form data and try again.');
+      } else {
+        toast.error(error.message || 'Failed to create caregiver profile. Please try again.');
+      }
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+    if (!formData.contact_info) {
+      toast.error('Contact information is required');
+      return;
+    }
+    createMutation.mutate(formData as {
+      service_type: string;
+      experience_level: string;
+      location: string;
+      hourly_rate: number;
+      description: string;
+      contact_info: string;
+    });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -115,6 +149,22 @@ export default function CreateCaregiver() {
                 onChange={handleInputChange}
                 required
                 placeholder="e.g., San Francisco, CA"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="contact_info" className="block text-sm font-medium text-gray-700">
+                Contact Information
+              </label>
+              <input
+                type="text"
+                id="contact_info"
+                name="contact_info"
+                value={formData.contact_info || ''}
+                onChange={handleInputChange}
+                required
+                placeholder="e.g., Phone number or email"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               />
             </div>

@@ -172,19 +172,19 @@ export interface LoginResponse {
 
 export interface CreateBloodRequestRequest {
   blood_type: string;
-  units_needed: number;
-  urgency: 'high' | 'medium' | 'low';
   location: string;
+  urgency: 'high' | 'medium' | 'low';
+  contact_number: string;
   notes?: string;
 }
 
 export interface CreateDeviceListingRequest {
+  device_name: string;
   device_type: string;
-  title: string;
+  condition: string;
   description: string;
-  condition: 'new' | 'like_new' | 'good' | 'fair';
   location: string;
-  availability: 'available' | 'pending' | 'unavailable';
+  contact_info: string;
 }
 
 export interface BloodDonation {

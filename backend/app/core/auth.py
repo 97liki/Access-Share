@@ -4,14 +4,14 @@ from typing import Optional
 from app.db.session import get_db
 from app.models.user import User
 
-def get_current_user(email: Optional[str] = Header(None), db: Session = Depends(get_db)) -> User:
+def get_current_user(x_user_email: Optional[str] = Header(None, alias="X-User-Email"), db: Session = Depends(get_db)) -> User:
     """Basic authentication using email header"""
-    if not email:
+    if not x_user_email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == x_user_email).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

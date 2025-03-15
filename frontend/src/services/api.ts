@@ -97,14 +97,34 @@ axios.interceptors.response.use(
         console.error('Resource not found:', error.response.data);
       } else if (error.response.status >= 500) {
         console.error('Server error:', error.response.data);
+        
+        // Return a more user-friendly error object for 500 errors
+        return Promise.reject({
+          message: 'A server error occurred. This might be due to recent changes in the database. Please try again later or contact support.',
+          originalError: error,
+          isServerError: true
+        });
       }
     } else if (error.request) {
       // The request was made but no response was received
       console.error('API Error Request (no response):', error.request);
       // Network errors should be handled by the components
+      
+      // Return a more user-friendly error object for network errors
+      return Promise.reject({
+        message: 'Network error. Please check your internet connection and try again.',
+        originalError: error,
+        isNetworkError: true
+      });
     } else {
       // Something happened in setting up the request that triggered an Error
       console.error('API Error Setup:', error.message);
+      
+      // Return a more user-friendly error for setup errors
+      return Promise.reject({
+        message: 'An error occurred while preparing your request. Please try again.',
+        originalError: error
+      });
     }
 
     return Promise.reject(error);
@@ -560,6 +580,7 @@ export const caregiversApi = {
     hourly_rate: number;
     description: string;
     contact_info: string;
+    availability_status?: string;
   }): Promise<ApiResponse<CaregiverListing>> => {
     const response = await axios.post(`${API_URL}/caregivers/listings`, data, {
       headers: {

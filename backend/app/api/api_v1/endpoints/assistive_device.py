@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime
 from app.db.session import get_db
 from app.models.user import User
 from app.models.assistive_device import AssistiveDeviceListing, AssistiveDeviceRequest, AssistiveDeviceResponse, DeviceReview
@@ -22,17 +23,29 @@ router = APIRouter()
 def create_device_listing(
     listing: AssistiveDeviceListingCreate,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
     """Create a new assistive device listing"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    if not user.is_donor:
-        raise HTTPException(status_code=403, detail="User is not registered as a donor")
+    # Remove is_donor check temporarily until role migration is complete
+    # if not user.is_donor:
+    #    raise HTTPException(status_code=403, detail="User is not registered as a donor")
 
+    # Create the database object
     db_listing = AssistiveDeviceListing(**listing.dict(), donor_id=user.id)
+    
+    # Set created_at and updated_at explicitly
+    current_time = datetime.now()
+    db_listing.created_at = current_time
+    db_listing.updated_at = current_time
+    
+    # Add, commit, and refresh the object
     db.add(db_listing)
     db.commit()
     db.refresh(db_listing)
@@ -43,9 +56,12 @@ def get_device_listings(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
     """Get all assistive device listings"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -57,8 +73,15 @@ def get_device_listings(
 def read_device_listing(
     listing_id: int,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
     listing = db.query(AssistiveDeviceListing).filter(
         AssistiveDeviceListing.id == listing_id
     ).first()
@@ -74,15 +97,19 @@ def read_device_listing(
 def create_device_request(
     request: AssistiveDeviceRequestCreate,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
     """Create a new assistive device request"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not user.is_recipient:
-        raise HTTPException(status_code=403, detail="User is not registered as a recipient")
+    # Once the role migration is complete, uncomment this line
+    # if not user.is_recipient:
+    #    raise HTTPException(status_code=403, detail="User is not registered as a recipient")
 
     # Verify listing exists
     listing = db.query(AssistiveDeviceListing).filter(AssistiveDeviceListing.id == request.listing_id).first()
@@ -100,9 +127,12 @@ def get_device_requests(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
     """Get all assistive device requests"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -114,8 +144,11 @@ def get_device_requests(
 def read_device_request(
     request_id: int,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     request = db.query(AssistiveDeviceRequest).filter(
         AssistiveDeviceRequest.id == request_id
     ).first()
@@ -131,8 +164,11 @@ def read_device_request(
 def create_device_response(
     response: AssistiveDeviceResponseCreate,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     # Verify listing and request exist
     listing = db.query(AssistiveDeviceListing).filter(
         AssistiveDeviceListing.id == response.listing_id
@@ -171,8 +207,11 @@ def read_device_responses(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -184,8 +223,11 @@ def read_device_responses(
 def read_device_response(
     response_id: int,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     response = db.query(AssistiveDeviceResponse).filter(
         AssistiveDeviceResponse.id == response_id
     ).first()
@@ -201,8 +243,11 @@ def update_response_status(
     response_id: int,
     status: str,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     response = db.query(AssistiveDeviceResponse).filter(
         AssistiveDeviceResponse.id == response_id
     ).first()
@@ -225,9 +270,12 @@ def update_response_status(
 def create_device_review(
     review: DeviceReviewCreate,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
     """Create a new device review"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -248,9 +296,12 @@ def get_device_reviews(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    email: str = Depends(lambda x: x.headers.get("X-User-Email"))
+    email: str = Header(None, alias="X-User-Email")
 ):
     """Get all device reviews"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

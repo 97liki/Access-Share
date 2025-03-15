@@ -46,7 +46,21 @@ const AssistiveDevices = () => {
       navigate('/assistive-devices');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to submit device donation');
+      console.error('Device creation error:', error);
+      
+      // Handle our new error format with friendly messages
+      if (error.isServerError) {
+        toast.error(error.message || 'A server error occurred. Please try again later.');
+      } else if (error.isNetworkError) {
+        toast.error(error.message || 'Network error. Please check your connection and try again.');
+      } else if (error.response?.status === 401) {
+        toast.error('You must be logged in to donate devices. Please sign in.');
+        navigate('/login');
+      } else if (error.response?.status === 422) {
+        toast.error('Please check your form data and try again.');
+      } else {
+        toast.error(error.message || 'Failed to submit device donation. Please try again.');
+      }
     },
   });
 
@@ -277,7 +291,7 @@ const AssistiveDevices = () => {
                   />
                 </div>
                 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <button
                     type="submit"
                     disabled={createMutation.isPending}
