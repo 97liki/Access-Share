@@ -63,7 +63,7 @@ export default function Caregivers() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['caregivers', filters],
     queryFn: () => caregiversApi.getAll(filters),
-    enabled: !showAuthWarning && (isFindView || !isOfferView),
+    enabled: !showAuthWarning,
     retry: 1,
   });
 
@@ -260,8 +260,8 @@ export default function Caregivers() {
         </div>
       </div>
 
-      {/* Results grid */}
-      {(isFindView || !isOfferView) && (
+      {/* Results grid - show ONLY on find view, NOT on home page */}
+      {isFindView && (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
           {!data?.data?.items?.length ? (
             <div className="text-center py-12">
@@ -330,6 +330,24 @@ export default function Caregivers() {
               ))}
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Show welcome message on home page when not in find or offer view */}
+      {!isFindView && !isOfferView && (
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 text-center">
+          <h3 className="text-xl font-medium text-gray-900 mb-4">Welcome to Caregivers</h3>
+          <p className="text-gray-600 mb-6">
+            Select "Find Caregiver" to view available caregivers or "Offer Care" to offer your services.
+          </p>
+          <div className="mt-8 flex justify-center space-x-4">
+            <button
+              onClick={() => navigate('/caregivers/find')}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              View Caregiver Listings
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from app.db.session import get_db
 from app.models.user import User
@@ -15,6 +15,7 @@ from app.schemas.assistive_device import (
     DeviceReviewCreate,
     DeviceReviewResponse
 )
+from app.schemas.common import PaginatedResponse
 
 router = APIRouter()
 
@@ -51,10 +52,12 @@ def create_device_listing(
     db.refresh(db_listing)
     return db_listing
 
-@router.get("/listings", response_model=List[AssistiveDeviceListingResponse])
+@router.get("/listings", response_model=PaginatedResponse[AssistiveDeviceListingResponse])
 def get_device_listings(
     skip: int = 0,
     limit: int = 100,
+    device_type: Optional[str] = None,
+    location: Optional[str] = None,
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
@@ -66,8 +69,31 @@ def get_device_listings(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    listings = db.query(AssistiveDeviceListing).offset(skip).limit(limit).all()
-    return listings
+    query = db.query(AssistiveDeviceListing)
+    
+    # Apply filters only if they have actual values
+    if device_type and device_type.strip():
+        query = query.filter(AssistiveDeviceListing.device_type == device_type)
+    if location and location.strip():
+        query = query.filter(AssistiveDeviceListing.location == location)
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    listings = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": listings,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
 
 @router.get("/listings/{listing_id}", response_model=AssistiveDeviceListingResponse)
 def read_device_listing(
@@ -117,28 +143,53 @@ def create_device_request(
         raise HTTPException(status_code=404, detail="Device listing not found")
 
     db_request = AssistiveDeviceRequest(**request.dict(), receiver_id=user.id)
+    
+    # Set created_at and updated_at explicitly
+    current_time = datetime.now()
+    db_request.created_at = current_time
+    db_request.updated_at = current_time
+    
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
     return db_request
 
-@router.get("/requests", response_model=List[AssistiveDeviceRequestResponse])
+@router.get("/requests", response_model=PaginatedResponse[AssistiveDeviceRequestResponse])
 def get_device_requests(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
-    """Get all assistive device requests"""
+    """
+    Get all assistive device requests
+    """
     if not email:
         raise HTTPException(status_code=401, detail="Authentication required")
         
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    requests = db.query(AssistiveDeviceRequest).offset(skip).limit(limit).all()
-    return requests
+    
+    query = db.query(AssistiveDeviceRequest)
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    requests = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": requests,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
 
 @router.get("/requests/{request_id}", response_model=AssistiveDeviceRequestResponse)
 def read_device_request(
@@ -146,17 +197,19 @@ def read_device_request(
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
+    """
+    Get a specific assistive device request by ID
+    """
     if not email:
         raise HTTPException(status_code=401, detail="Authentication required")
         
-    request = db.query(AssistiveDeviceRequest).filter(
-        AssistiveDeviceRequest.id == request_id
-    ).first()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    request = db.query(AssistiveDeviceRequest).filter(AssistiveDeviceRequest.id == request_id).first()
     if not request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Device request not found"
-        )
+        raise HTTPException(status_code=404, detail="Assistive device request not found")
     return request
 
 # Response endpoints
@@ -197,12 +250,18 @@ def create_device_response(
         donor_id=user.id,
         receiver_id=request.receiver_id
     )
+    
+    # Set created_at and updated_at explicitly
+    current_time = datetime.now()
+    db_response.created_at = current_time
+    db_response.updated_at = current_time
+    
     db.add(db_response)
     db.commit()
     db.refresh(db_response)
     return db_response
 
-@router.get("/responses", response_model=List[AssistiveDeviceResponseResponse])
+@router.get("/responses", response_model=PaginatedResponse[AssistiveDeviceResponseResponse])
 def read_device_responses(
     skip: int = 0,
     limit: int = 100,
@@ -216,8 +275,33 @@ def read_device_responses(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    responses = db.query(AssistiveDeviceResponse).offset(skip).limit(limit).all()
-    return responses
+    query = db.query(AssistiveDeviceResponse)
+    
+    # Fix for null updated_at values
+    current_time = datetime.now()
+    for response in query.all():
+        if not response.updated_at:
+            response.updated_at = current_time
+            db.add(response)
+    db.commit()
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    responses = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": responses,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
 
 @router.get("/responses/{response_id}", response_model=AssistiveDeviceResponseResponse)
 def read_device_response(
@@ -286,12 +370,18 @@ def create_device_review(
         raise HTTPException(status_code=404, detail="Device listing not found")
 
     db_review = DeviceReview(**review.dict(), reviewer_id=user.id)
+    
+    # Set created_at and updated_at explicitly
+    current_time = datetime.now()
+    db_review.created_at = current_time
+    db_review.updated_at = current_time
+    
     db.add(db_review)
     db.commit()
     db.refresh(db_review)
     return db_review
 
-@router.get("/reviews", response_model=List[DeviceReviewResponse])
+@router.get("/reviews", response_model=PaginatedResponse[DeviceReviewResponse])
 def get_device_reviews(
     skip: int = 0,
     limit: int = 100,
@@ -306,5 +396,30 @@ def get_device_reviews(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    reviews = db.query(DeviceReview).offset(skip).limit(limit).all()
-    return reviews
+    query = db.query(DeviceReview)
+    
+    # Fix for null updated_at values
+    current_time = datetime.now()
+    for review in query.all():
+        if not review.updated_at:
+            review.updated_at = current_time
+            db.add(review)
+    db.commit()
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    reviews = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": reviews,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }

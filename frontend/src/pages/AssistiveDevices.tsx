@@ -120,13 +120,13 @@ const AssistiveDevices = () => {
         <div className="lg:text-center mb-12">
           <h2 className="text-base text-primary-600 font-semibold tracking-wide uppercase">Assistive Devices</h2>
           <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-            {isDonateView ? 'Donate Devices' : isRequestView ? 'Request Devices' : 'Assistive Devices Hub'}
+            {isDonateView ? 'Donate Devices' : isRequestView ? 'Device Listings' : 'Assistive Devices Hub'}
           </p>
           <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
             {isDonateView 
               ? 'Donate medical equipment and assistive devices to those in need' 
               : isRequestView 
-                ? 'Find assistive devices and medical equipment you need'
+                ? 'Browse assistive devices and medical equipment you need'
                 : 'Browse available assistive devices in your area or list your own device to help others.'}
           </p>
           
@@ -143,7 +143,7 @@ const AssistiveDevices = () => {
                 onClick={() => navigate('/devices/request')}
                 className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
-                Request Devices
+                View Device Listings
               </button>
             </div>
           )}
@@ -305,8 +305,8 @@ const AssistiveDevices = () => {
           </div>
         )}
 
-        {/* Device List - show on main page or request view */}
-        {(isRequestView || !isDonateView) && (
+        {/* Device List - show ONLY on request view, NOT on home page */}
+        {isRequestView && (
           <>
             {data?.data?.items?.length === 0 ? (
               <div className="text-center py-12">
@@ -346,6 +346,24 @@ const AssistiveDevices = () => {
               </div>
             )}
           </>
+        )}
+        
+        {/* Show welcome message on home page when not in request or donate view */}
+        {!isRequestView && !isDonateView && (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-medium text-gray-900 mb-4">Welcome to Assistive Devices</h3>
+            <p className="text-gray-600 mb-6">
+              Select "View Device Listings" to browse available devices or "Donate Device" to offer your help.
+            </p>
+            <div className="mt-8 flex justify-center space-x-4">
+              <button
+                onClick={() => navigate('/devices/request')}
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                View Device Listings
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

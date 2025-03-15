@@ -11,6 +11,7 @@ from app.schemas.blood_donation import (
     BloodDonationResponseCreate,
     BloodDonationResponseResponse
 )
+from app.schemas.common import PaginatedResponse
 
 router = APIRouter()
 
@@ -49,7 +50,7 @@ def create_blood_request(
     db.refresh(db_request)
     return db_request
 
-@router.get("/requests", response_model=List[BloodDonationRequestResponse])
+@router.get("/requests", response_model=PaginatedResponse[BloodDonationRequestResponse])
 def get_blood_requests(
     skip: int = 0,
     limit: int = 100,
@@ -68,13 +69,58 @@ def get_blood_requests(
 
     query = db.query(BloodDonationRequest)
     
-    if blood_type:
+    # Apply filters only if they have actual values
+    if blood_type and blood_type.strip():
         query = query.filter(BloodDonationRequest.blood_type == blood_type)
-    if location:
+    if location and location.strip():
         query = query.filter(BloodDonationRequest.location == location)
         
+    # Fix for null updated_at values
+    current_time = datetime.now()
+    for request in query.all():
+        if not request.updated_at:
+            request.updated_at = current_time
+            db.add(request)
+    db.commit()
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
     requests = query.offset(skip).limit(limit).all()
-    return requests
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": requests,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
+
+@router.get("/requests/{request_id}", response_model=BloodDonationRequestResponse)
+def read_blood_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    email: str = Header(None, alias="X-User-Email")
+):
+    """
+    Get a specific blood donation request by ID
+    """
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    request = db.query(BloodDonationRequest).filter(BloodDonationRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Blood donation request not found")
+    return request
 
 @router.post("/responses", response_model=BloodDonationResponseResponse)
 def create_blood_response(
@@ -110,7 +156,7 @@ def create_blood_response(
     db.refresh(db_response)
     return db_response
 
-@router.get("/responses", response_model=List[BloodDonationResponseResponse])
+@router.get("/responses", response_model=PaginatedResponse[BloodDonationResponseResponse])
 def get_blood_responses(
     skip: int = 0,
     limit: int = 100,
@@ -125,5 +171,22 @@ def get_blood_responses(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    responses = db.query(BloodDonationResponse).offset(skip).limit(limit).all()
-    return responses
+    query = db.query(BloodDonationResponse)
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    responses = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": responses,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }

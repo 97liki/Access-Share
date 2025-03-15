@@ -23,6 +23,7 @@ from app.schemas.caregiver import (
     CaregiverReviewCreate,
     CaregiverReviewResponse
 )
+from app.schemas.common import PaginatedResponse
 from app.core.auth import get_current_user
 
 # Use auth module for user authentication
@@ -43,6 +44,12 @@ def create_caregiver_listing(
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Ensure user has a full_name
+    if not user.full_name or user.full_name == "":
+        user.full_name = user.username  # Use username as fallback
+        db.add(user)
+        db.commit()
     
     # Once the role migration is complete, uncomment this line
     # if not user.is_caregiver:
@@ -65,10 +72,14 @@ def create_caregiver_listing(
     db.refresh(db_listing)
     return db_listing
 
-@router.get("/listings", response_model=List[CaregiverListingResponse])
+@router.get("/listings", response_model=PaginatedResponse[CaregiverListingResponse])
 def get_caregiver_listings(
     skip: int = 0,
     limit: int = 100,
+    service_type: Optional[str] = None,
+    experience_level: Optional[str] = None,
+    location: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
@@ -80,8 +91,34 @@ def get_caregiver_listings(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    listings = db.query(CaregiverListing).offset(skip).limit(limit).all()
-    return listings
+    query = db.query(CaregiverListing)
+    
+    # Apply filters only if they have actual values
+    if service_type and service_type.strip():
+        query = query.filter(CaregiverListing.service_type == service_type)
+    if experience_level and experience_level.strip():
+        query = query.filter(CaregiverListing.experience_level == experience_level)
+    if location and location.strip():
+        query = query.filter(CaregiverListing.location == location)
+    # We could add a more complex search here, but for simplicity we'll leave it for now
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    listings = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": listings,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
 
 @router.get("/listings/{listing_id}", response_model=CaregiverListingResponse)
 def read_caregiver_listing(
@@ -135,22 +172,42 @@ def create_caregiver_request(
     db.refresh(db_request)
     return db_request
 
-@router.get("/requests", response_model=List[CaregiverRequestResponse])
+@router.get("/requests", response_model=PaginatedResponse[CaregiverRequestResponse])
 def read_caregiver_requests(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
+    """
+    Get all caregiver requests
+    """
     if not email:
         raise HTTPException(status_code=401, detail="Authentication required")
         
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    requests = db.query(CaregiverRequest).offset(skip).limit(limit).all()
-    return requests
+    
+    query = db.query(CaregiverRequest)
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    requests = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": requests,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
 
 @router.get("/requests/{request_id}", response_model=CaregiverRequestResponse)
 def read_caregiver_request(
@@ -158,21 +215,19 @@ def read_caregiver_request(
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
+    """
+    Get a specific caregiver request by ID
+    """
     if not email:
         raise HTTPException(status_code=401, detail="Authentication required")
         
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-        
-    request = db.query(CaregiverRequest).filter(
-        CaregiverRequest.id == request_id
-    ).first()
+    
+    request = db.query(CaregiverRequest).filter(CaregiverRequest.id == request_id).first()
     if not request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Caregiver request not found"
-        )
+        raise HTTPException(status_code=404, detail="Caregiver request not found")
     return request
 
 # Response endpoints
@@ -218,7 +273,7 @@ def create_caregiver_response(
     db.refresh(db_response)
     return db_response
 
-@router.get("/responses", response_model=List[CaregiverResponseResponse])
+@router.get("/responses", response_model=PaginatedResponse[CaregiverResponseResponse])
 def read_caregiver_responses(
     skip: int = 0,
     limit: int = 100,
@@ -231,9 +286,34 @@ def read_caregiver_responses(
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-        
-    responses = db.query(CaregiverResponse).offset(skip).limit(limit).all()
-    return responses
+    
+    query = db.query(CaregiverResponse)
+    
+    # Fix for null updated_at values
+    current_time = datetime.now()
+    for response in query.all():
+        if not response.updated_at:
+            response.updated_at = current_time
+            db.add(response)
+    db.commit()
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    responses = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": responses,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
 
 @router.get("/responses/{response_id}", response_model=CaregiverResponseResponse)
 def read_caregiver_response(
@@ -328,7 +408,7 @@ def create_caregiver_review(
     
     return db_review
 
-@router.get("/reviews", response_model=List[CaregiverReviewResponse])
+@router.get("/reviews", response_model=PaginatedResponse[CaregiverReviewResponse])
 def read_caregiver_reviews(
     skip: int = 0,
     limit: int = 100,
@@ -342,8 +422,33 @@ def read_caregiver_reviews(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    reviews = db.query(CaregiverReview).offset(skip).limit(limit).all()
-    return reviews
+    query = db.query(CaregiverReview)
+    
+    # Fix for null updated_at values
+    current_time = datetime.now()
+    for review in query.all():
+        if not review.updated_at:
+            review.updated_at = current_time
+            db.add(review)
+    db.commit()
+    
+    # Get total count for pagination
+    total = query.count()
+    
+    # Get paginated results
+    reviews = query.offset(skip).limit(limit).all()
+    
+    # Calculate total pages
+    pages = (total + limit - 1) // limit if limit > 0 else 1
+    
+    # Construct and return paginated response
+    return {
+        "items": reviews,
+        "total": total,
+        "page": (skip // limit) + 1,
+        "size": limit,
+        "pages": pages
+    }
 
 @router.get("/reviews/{review_id}", response_model=CaregiverReviewResponse)
 def read_caregiver_review(

@@ -17,6 +17,9 @@ class User(Base):
     # Add role field with a server_default so it works with existing data
     role = Column(String(50), server_default=text("'user'"), nullable=False)
     
+    # Add full_name field for UserInfo schema compatibility
+    full_name = Column(String(255), server_default=text("''"), nullable=True)
+    
     # Helper properties for authorization checks
     @property
     def is_donor(self):
