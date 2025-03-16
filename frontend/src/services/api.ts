@@ -1,4 +1,22 @@
 import axios, { AxiosRequestHeaders } from 'axios';
+import { User as UserType, RegisterRequest } from '../types/api';
+
+// Type definitions
+interface LoginData {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  email: string;
+  username: string;
+  password: string;
+}
+
+// API response types
+interface User extends UserType {
+  username: string;
+}
 
 // Ensure API URL is correct - check if you're running in development or production
 const API_URL = 'http://localhost:8000/api/v1';
@@ -136,23 +154,6 @@ interface ApiResponse<T = any> {
   success: boolean;
   message: string;
   data: T | null;
-}
-
-interface User {
-  id: number;
-  email: string;
-  username: string;
-}
-
-interface LoginData {
-  email: string;
-  password: string;
-}
-
-interface RegisterData {
-  email: string;
-  username: string;
-  password: string;
 }
 
 interface BloodDonation {
@@ -300,7 +301,16 @@ export const authApi = {
 
   register: async (data: RegisterData): Promise<User> => {
     try {
+      console.log('API: Attempting registration:', JSON.stringify(data));
+      
+      // Ensure data has username field (default to email username part if not provided)
+      if (!data.username && data.email) {
+        data.username = data.email.split('@')[0];
+        console.log('API: Generated username from email:', data.username);
+      }
+      
       const response = await axios.post(`${API_URL}/auth/register`, data);
+      console.log('API: Registration response:', response.data);
       
       // Ensure we handle the response correctly
       if (response.data && response.data.id && response.data.email) {
@@ -315,6 +325,9 @@ export const authApi = {
       
       // Handle specific API error responses
       if (error.response) {
+        console.error('API: Error response status:', error.response.status);
+        console.error('API: Error response data:', error.response.data);
+        
         if (error.response.status === 400) {
           if (error.response.data?.detail?.includes('Email already registered')) {
             throw new Error('Email already registered. Please use a different email or login.');
@@ -323,6 +336,8 @@ export const authApi = {
           } else if (error.response.data?.detail) {
             throw new Error(error.response.data.detail);
           }
+        } else if (error.response.data?.detail) {
+          throw new Error(error.response.data.detail);
         }
       }
       
