@@ -335,6 +335,37 @@ export const authApi = {
     localStorage.removeItem('userEmail');
   },
 
+  deleteAccount: async (): Promise<{ success: boolean; message: string }> => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      throw new Error('Not authenticated');
+    }
+    
+    try {
+      const response = await axios.delete(`${API_URL}/auth/delete-account`, {
+        headers: {
+          'X-User-Email': userEmail
+        }
+      });
+      
+      // Clear user data from localStorage after successful deletion
+      localStorage.removeItem('userEmail');
+      
+      return {
+        success: true,
+        message: response.data?.message || 'Account successfully deleted'
+      };
+    } catch (error: any) {
+      console.error('Delete account error:', error);
+      
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+      
+      throw new Error('Failed to delete account. Please try again.');
+    }
+  },
+
   me: async (): Promise<User> => {
     const userEmail = localStorage.getItem('userEmail');
     if (!userEmail) {

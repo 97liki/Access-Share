@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   KeyIcon,
   ShieldCheckIcon,
@@ -8,6 +9,8 @@ import {
   TrashIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 // Mock data - replace with API call
 const userSettings = {
@@ -50,15 +53,33 @@ const timezones = [
 export default function Settings() {
   const [settings, setSettings] = useState(userSettings);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const navigate = useNavigate();
+  const { deleteAccount } = useAuth();
 
   const handleSave = () => {
     // TODO: Implement API call to save settings
     console.log('Saving settings:', settings);
   };
 
-  const handleDeleteAccount = () => {
-    // TODO: Implement account deletion
-    console.log('Deleting account');
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeleting(true);
+      const result = await deleteAccount();
+      
+      if (result.success) {
+        toast.success('Your account has been successfully deleted');
+        // Redirect to login page after successful deletion
+        navigate('/login');
+      } else {
+        toast.error(result.message || 'Failed to delete account');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while deleting your account');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   return (
@@ -375,13 +396,15 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={handleDeleteAccount}
+                    disabled={isDeleting}
                     className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto"
                   >
-                    Delete
+                    {isDeleting ? 'Deleting...' : 'Delete'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
                     className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                   >
                     Cancel
