@@ -20,6 +20,9 @@ class User(Base):
     # Add full_name field for UserInfo schema compatibility
     full_name = Column(String(255), server_default=text("''"), nullable=True)
     
+    # Add deleted_at field for account deletion
+    deleted_at = Column(DateTime, nullable=True)
+    
     # Helper properties for authorization checks
     @property
     def is_donor(self):
@@ -36,6 +39,10 @@ class User(Base):
     @property
     def is_admin(self):
         return self.role == 'admin'
+    
+    @property
+    def is_deleted(self):
+        return self.deleted_at is not None
 
     def verify_password(self, password: str) -> bool:
         return pwd_context.verify(password, self.hashed_password)

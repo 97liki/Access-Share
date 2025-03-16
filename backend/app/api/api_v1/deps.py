@@ -18,7 +18,7 @@ def get_current_user(
     db: Session = Depends(get_db),
     credentials: HTTPBasicCredentials = Depends(security)
 ) -> User:
-    user = db.query(User).filter(User.email == credentials.username).first()
+    user = db.query(User).filter(User.email == credentials.username, User.deleted_at == None).first()
     if not user or not user.verify_password(credentials.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

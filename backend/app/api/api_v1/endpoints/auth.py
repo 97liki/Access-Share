@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import UserCreate, UserLogin, UserResponse
+from datetime import datetime
 
 router = APIRouter()
 
@@ -10,15 +11,15 @@ router = APIRouter()
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     try:
-        # Check if user already exists
-        if db.query(User).filter(User.email == user_data.email).first():
+        # Check if user already exists (including deleted users)
+        if db.query(User).filter(User.email == user_data.email, User.deleted_at == None).first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
         
-        # Check if username already exists
-        if db.query(User).filter(User.username == user_data.username).first():
+        # Check if username already exists (including deleted users)
+        if db.query(User).filter(User.username == user_data.username, User.deleted_at == None).first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already taken"
@@ -47,7 +48,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
     """Login user"""
     try:
-        user = db.query(User).filter(User.email == login_data.email).first()
+        user = db.query(User).filter(User.email == login_data.email, User.deleted_at == None).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -76,10 +77,41 @@ def get_current_user(db: Session = Depends(get_db), x_user_email: str = Header(N
             detail="Not authenticated"
         )
     
-    user = db.query(User).filter(User.email == x_user_email).first()
+    user = db.query(User).filter(User.email == x_user_email, User.deleted_at == None).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     return user
+
+@router.delete("/delete-account", response_model=dict)
+def delete_account(db: Session = Depends(get_db), x_user_email: str = Header(None, alias="X-User-Email")):
+    """Delete user account (soft delete)"""
+    if not x_user_email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    
+    try:
+        user = db.query(User).filter(User.email == x_user_email, User.deleted_at == None).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Soft delete the user by setting deleted_at timestamp
+        user.deleted_at = datetime.now()
+        db.commit()
+        
+        return {"success": True, "message": "Account successfully deleted"}
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while deleting the account: {str(e)}"
+        )

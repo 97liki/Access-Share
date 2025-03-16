@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (credentials: { email: string; password: string }) => Promise<User>;
   register: (data: { email: string; username: string; password: string }) => Promise<void>;
   logout: () => void;
+  deleteAccount: () => Promise<{ success: boolean; message: string }>;
   isLoading: boolean;
 }
 
@@ -104,8 +105,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('userEmail');
   };
 
+  const deleteAccount = async () => {
+    try {
+      const result = await authApi.deleteAccount();
+      
+      // If deletion was successful, clear user state
+      if (result.success) {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('AuthContext: Delete account error:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout, deleteAccount, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

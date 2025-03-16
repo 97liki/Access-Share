@@ -11,7 +11,7 @@ def get_current_user(x_user_email: Optional[str] = Header(None, alias="X-User-Em
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
-    user = db.query(User).filter(User.email == x_user_email).first()
+    user = db.query(User).filter(User.email == x_user_email, User.deleted_at == None).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
