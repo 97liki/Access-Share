@@ -70,16 +70,19 @@ pip install -r requirements.txt
 
 3. Create a `.env` file in the backend directory:
 ```bash
-# Database configuration
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/accessshare
+# Database Configuration
+POSTGRES_SERVER=localhost
+POSTGRES_USER=likithakonam
+POSTGRES_PASSWORD=password
+POSTGRES_DB=postgres
+POSTGRES_PORT=5432
 
-# Security
-SECRET_KEY=your_secret_key_here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+PROJECT_NAME=access_share
+VERSION=1.0.0
+API_V1_STR=/api/v1
 
 # CORS
-BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
+BACKEND_CORS_ORIGINS=["http://localhost:3000"]
 ```
 
 4. Make sure PostgreSQL is running locally:
@@ -95,13 +98,13 @@ psql -U postgres -c "CREATE DATABASE accessshare;"
 
 6. Run database migrations:
 ```bash
-alembic upgrade head
+python manage.py migrate
 ```
    This command applies all migrations to your database, creating the necessary tables and relationships. It's important to run this before starting the application to ensure your database schema is up-to-date.
 
 7. Start the backend server:
 ```bash
-uvicorn app.main:app --reload
+python manage.py runserver
 ```
    The backend should now be running at http://localhost:8000
 
@@ -119,10 +122,22 @@ npm install
 
 3. Create a `.env` file in the frontend directory:
 ```bash
-VITE_API_BASE_URL=http://localhost:8000
+# Backend API Configuration
+VITE_API_URL=http://localhost:8000/api/v1
+VITE_API_TIMEOUT=30000
+
+# Other Configuration
+VITE_APP_NAME=Access Share
+VITE_APP_DESCRIPTION=Connecting people with healthcare resources and assistive devices
 ```
 
 4. Start the development server:
+For first time
+```bash
+npm install
+```
+
+Then to run web server:
 ```bash
 npm run dev
 ```
@@ -175,8 +190,8 @@ source venv/bin/activate  # macOS/Linux
 2. After making changes to database models, create and apply migrations:
 ```bash
 cd backend
-alembic revision --autogenerate -m "description of changes"
-alembic upgrade head
+python manage.py makemigrations
+python manage.py migrate
 ```
 
 ## License
