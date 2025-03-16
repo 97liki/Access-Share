@@ -584,6 +584,53 @@ export const devicesApi = {
 
 // Caregivers API
 export const caregiversApi = {
+  // Helper function to map values to the correct enum format
+  mapServiceType: (value: string): string => {
+    // Map frontend display values to backend enum values
+    const mappings: Record<string, string> = {
+      'personal care': 'Personal Care',
+      'medical care': 'Medical Care',
+      'emotional support': 'Emotional Support',
+      'transportation': 'Transportation',
+      'companionship': 'Companionship',
+      'housekeeping': 'Housekeeping',
+      'skilled nursing': 'Skilled Nursing',
+      'therapy': 'Therapy',
+      'other': 'Other',
+      // Also support uppercase versions
+      'PERSONAL_CARE': 'Personal Care',
+      'MEDICAL_CARE': 'Medical Care',
+      'EMOTIONAL_SUPPORT': 'Emotional Support',
+      'TRANSPORTATION': 'Transportation',
+      'COMPANIONSHIP': 'Companionship',
+      'HOUSEKEEPING': 'Housekeeping',
+      'SKILLED_NURSING': 'Skilled Nursing',
+      'THERAPY': 'Therapy',
+      'OTHER': 'Other'
+    };
+    
+    // Return the mapped value or the original if no mapping exists
+    return mappings[value.toLowerCase()] || value;
+  },
+  
+  mapExperienceLevel: (value: string): string => {
+    // Map frontend display values to backend enum values
+    const mappings: Record<string, string> = {
+      'beginner': 'Entry Level (0-2 years)',
+      'intermediate': 'Intermediate (2-5 years)',
+      'experienced': 'Experienced (5-10 years)',
+      'expert': 'Expert (10+ years)',
+      // Also support enum names
+      'ENTRY_LEVEL': 'Entry Level (0-2 years)',
+      'INTERMEDIATE': 'Intermediate (2-5 years)',
+      'EXPERIENCED': 'Experienced (5-10 years)',
+      'EXPERT': 'Expert (10+ years)'
+    };
+    
+    // Return the mapped value or the original if no mapping exists
+    return mappings[value.toLowerCase()] || value;
+  },
+  
   getAll: async (filters?: CaregiverFilters): Promise<ApiResponse<PaginatedResponse<CaregiverListing>>> => {
     try {
       // Add default pagination parameters
@@ -593,6 +640,17 @@ export const caregiversApi = {
         ...filters
       };
       
+      // Map service_type and experience_level if they exist
+      if (queryParams.service_type) {
+        queryParams.service_type = caregiversApi.mapServiceType(queryParams.service_type);
+      }
+      
+      if (queryParams.experience_level) {
+        queryParams.experience_level = caregiversApi.mapExperienceLevel(queryParams.experience_level);
+      }
+      
+      console.log('API: Getting caregivers with params:', queryParams);
+      
       const response = await axios.get(`${API_URL}/caregivers/listings`, {
         params: queryParams,
         headers: {
@@ -600,11 +658,12 @@ export const caregiversApi = {
         }
       });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching caregivers:', error);
+      console.error('Error details:', error.response?.data);
       return {
         success: false,
-        message: 'Failed to fetch caregivers',
+        message: error.response?.data?.detail || 'Failed to fetch caregivers',
         data: null
       };
     }
@@ -628,12 +687,27 @@ export const caregiversApi = {
     contact_info: string;
     availability_status?: string;
   }): Promise<ApiResponse<CaregiverListing>> => {
-    const response = await axios.post(`${API_URL}/caregivers/listings`, data, {
-      headers: {
-        'X-User-Email': localStorage.getItem('userEmail') || ''
-      }
-    });
-    return response.data;
+    try {
+      // Map service_type and experience_level
+      const mappedData = {
+        ...data,
+        service_type: caregiversApi.mapServiceType(data.service_type),
+        experience_level: caregiversApi.mapExperienceLevel(data.experience_level)
+      };
+      
+      console.log('API: Creating caregiver with data:', mappedData);
+      
+      const response = await axios.post(`${API_URL}/caregivers/listings`, mappedData, {
+        headers: {
+          'X-User-Email': localStorage.getItem('userEmail') || ''
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating caregiver:', error);
+      console.error('Error details:', error.response?.data);
+      throw new Error(error.response?.data?.detail || 'Failed to create caregiver listing');
+    }
   },
 
   updateCaregiver: async (id: number, data: Partial<CaregiverListing>): Promise<ApiResponse<CaregiverListing>> => {

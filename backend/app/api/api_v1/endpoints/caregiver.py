@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -25,6 +25,7 @@ from app.schemas.caregiver import (
 )
 from app.schemas.common import PaginatedResponse
 from app.core.auth import get_current_user
+import traceback
 
 # Use auth module for user authentication
 
@@ -41,7 +42,7 @@ def create_caregiver_listing(
     if not email:
         raise HTTPException(status_code=401, detail="Authentication required")
         
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(User.email == email, User.deleted_at.is_(None)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -51,26 +52,31 @@ def create_caregiver_listing(
         db.add(user)
         db.commit()
     
-    # Once the role migration is complete, uncomment this line
-    # if not user.is_caregiver:
-    #    raise HTTPException(status_code=403, detail="User is not registered as a caregiver")
-    
-    # Create the database object
-    db_listing = CaregiverListing(
-        **listing.dict(),
-        caregiver_id=user.id
-    )
-    
-    # Set created_at and updated_at explicitly
-    current_time = datetime.now()
-    db_listing.created_at = current_time
-    db_listing.updated_at = current_time
-    
-    # Add, commit, and refresh the object
-    db.add(db_listing)
-    db.commit()
-    db.refresh(db_listing)
-    return db_listing
+    try:
+        # Print the incoming data to help with debugging
+        print(f"Creating caregiver listing with service_type: {listing.service_type}, experience_level: {listing.experience_level}")
+        
+        # Create the database object
+        db_listing = CaregiverListing(
+            **listing.dict(),
+            caregiver_id=user.id
+        )
+        
+        # Set created_at and updated_at explicitly
+        current_time = datetime.now()
+        db_listing.created_at = current_time
+        db_listing.updated_at = current_time
+        
+        # Add, commit, and refresh the object
+        db.add(db_listing)
+        db.commit()
+        db.refresh(db_listing)
+        return db_listing
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating caregiver listing: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to create listing: {str(e)}")
 
 @router.get("/listings", response_model=PaginatedResponse[CaregiverListingResponse])
 def get_caregiver_listings(
@@ -83,42 +89,88 @@ def get_caregiver_listings(
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
-    """Get all caregiver listings"""
-    if not email:
-        raise HTTPException(status_code=401, detail="Authentication required")
-        
-    user = db.query(User).filter(User.email == email).first()
+    """Get caregiver listings with optional filtering"""
+    user = db.query(User).filter(User.email == email, User.deleted_at.is_(None)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    query = db.query(CaregiverListing)
-    
-    # Apply filters only if they have actual values
-    if service_type and service_type.strip():
-        query = query.filter(CaregiverListing.service_type == service_type)
-    if experience_level and experience_level.strip():
-        query = query.filter(CaregiverListing.experience_level == experience_level)
-    if location and location.strip():
-        query = query.filter(CaregiverListing.location == location)
-    # We could add a more complex search here, but for simplicity we'll leave it for now
-    
-    # Get total count for pagination
-    total = query.count()
-    
-    # Get paginated results
-    listings = query.offset(skip).limit(limit).all()
-    
-    # Calculate total pages
-    pages = (total + limit - 1) // limit if limit > 0 else 1
-    
-    # Construct and return paginated response
-    return {
-        "items": listings,
-        "total": total,
-        "page": (skip // limit) + 1,
-        "size": limit,
-        "pages": pages
-    }
+    try:
+        query = db.query(CaregiverListing)
+        
+        # Apply filters only if they have actual values
+        if service_type and service_type.strip():
+            try:
+                # Try to map the string value to enum
+                # First try direct mapping
+                mapped_service_type = None
+                for enum_val in ServiceType:
+                    if service_type.upper().replace(' ', '_') == enum_val.name:
+                        mapped_service_type = enum_val
+                        break
+                    # Also try by display value
+                    if service_type == enum_val.value:
+                        mapped_service_type = enum_val
+                        break
+                
+                if mapped_service_type:
+                    query = query.filter(CaregiverListing.service_type == mapped_service_type)
+                else:
+                    print(f"Warning: Unable to map service_type '{service_type}' to a valid enum value")
+            except Exception as e:
+                print(f"Error mapping service_type: {str(e)}")
+                print(traceback.format_exc())
+        
+        if experience_level and experience_level.strip():
+            try:
+                # Try to map the string value to enum
+                # First try direct mapping
+                mapped_experience_level = None
+                for enum_val in ExperienceLevel:
+                    if experience_level.upper().replace(' ', '_') == enum_val.name:
+                        mapped_experience_level = enum_val
+                        break
+                    # Also try by display value
+                    if experience_level == enum_val.value:
+                        mapped_experience_level = enum_val
+                        break
+                
+                if mapped_experience_level:
+                    query = query.filter(CaregiverListing.experience_level == mapped_experience_level)
+                else:
+                    print(f"Warning: Unable to map experience_level '{experience_level}' to a valid enum value")
+            except Exception as e:
+                print(f"Error mapping experience_level: {str(e)}")
+                print(traceback.format_exc())
+        
+        if location and location.strip():
+            query = query.filter(CaregiverListing.location == location)
+        
+        # Add search functionality if needed
+        if search and search.strip():
+            search_term = f"%{search.strip()}%"
+            query = query.filter(CaregiverListing.description.ilike(search_term))
+        
+        # Get total count for pagination
+        total = query.count()
+        
+        # Get paginated results
+        listings = query.offset(skip).limit(limit).all()
+        
+        # Calculate total pages
+        pages = (total + limit - 1) // limit if limit > 0 else 1
+        
+        # Construct and return paginated response
+        return {
+            "items": listings,
+            "total": total,
+            "page": (skip // limit) + 1 if limit else 1,
+            "size": limit,
+            "pages": pages
+        }
+    except Exception as e:
+        print(f"Error in get_caregiver_listings: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @router.get("/listings/{listing_id}", response_model=CaregiverListingResponse)
 def read_caregiver_listing(
