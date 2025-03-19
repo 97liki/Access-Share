@@ -50,8 +50,8 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex">
             {/* Logo */}
-            <Link to="/" className="flex-shrink-0 flex items-center">
-              <span className="text-2xl font-bold text-primary-600">AccessShare</span>
+            <Link to="/" className="flex-shrink-0 flex items-center px-3 py-2 rounded-md text-sm font-medium text-primary-600 hover:text-primary-700">
+              <span className="text-2xl font-bold">AccessShare</span>
             </Link>
 
             {/* Feature Links - Always visible */}
@@ -117,7 +117,7 @@ const Navbar = () => {
                 {/* User Menu */}
                 <Menu as="div" className="relative ml-3">
                   <Menu.Button className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50">
-                    <span>{user?.full_name || 'User'}</span>
+                    <span>{user?.username || 'User'}</span>
                     <span>▼</span>
                   </Menu.Button>
                   <Transition
@@ -160,7 +160,7 @@ const Navbar = () => {
                             onClick={logout}
                             className={`${
                               active ? 'bg-primary-50 text-primary-600' : 'text-gray-700'
-                            } block w-full text-left px-4 py-2 text-sm`}
+                            } block w-full text-center px-4 py-2 text-sm`}
                           >
                             Sign Out
                           </button>

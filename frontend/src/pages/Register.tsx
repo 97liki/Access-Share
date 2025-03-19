@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -9,6 +9,8 @@ interface RegisterForm {
   email: string;
   username: string;
   password: string;
+  full_name?: string;
+  phone_number?: string;
 }
 
 // Password strength types
@@ -17,6 +19,7 @@ type PasswordStrength = 'weak' | 'medium' | 'strong' | '';
 const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>('');
   const [formData, setFormData] = useState<RegisterForm>({
@@ -24,6 +27,9 @@ const Register = () => {
     username: '',
     password: '',
   });
+
+  // Get the intended destination from location state or default to home page
+  const from = (location.state as any)?.from?.pathname || '/';
 
   // Check password strength whenever password changes
   useEffect(() => {
@@ -101,9 +107,9 @@ const Register = () => {
         duration: 4000
       });
       
-      // Delay navigation slightly to allow the user to see the success message
+      // Navigate to the page the user was trying to access, or home page
       setTimeout(() => {
-        navigate('/');
+        navigate(from, { replace: true });
       }, 1500);
     } catch (error: any) {
       toast.dismiss(loadingToast);

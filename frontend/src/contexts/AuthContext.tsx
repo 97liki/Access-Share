@@ -5,6 +5,8 @@ interface User {
   id: number;
   email: string;
   username: string;
+  full_name?: string;
+  phone_number?: string;
 }
 
 interface AuthContextType {
@@ -86,7 +88,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (data: { email: string; username: string; password: string }) => {
+  const register = async (data: { 
+    email: string; 
+    username: string; 
+    password: string; 
+    full_name?: string;
+    phone_number?: string;
+  }) => {
     try {
       const userData = await authApi.register(data);
       setUser(userData);

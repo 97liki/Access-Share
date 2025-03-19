@@ -1,7 +1,8 @@
 import React from 'react';
 
 interface PasswordStrengthIndicatorProps {
-  password: string;
+  password?: string;
+  strength?: number;
 }
 
 interface ValidationRule {
@@ -29,95 +30,93 @@ const validationRules: ValidationRule[] = [
   {
     id: 'number',
     label: 'Contains number',
-    check: (password) => /\d/.test(password),
+    check: (password) => /[0-9]/.test(password),
   },
   {
     id: 'special',
     label: 'Contains special character',
-    check: (password) => /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    check: (password) => /[^A-Za-z0-9]/.test(password),
   },
 ];
 
 export const getPasswordStrength = (password: string): number => {
-  if (!password) return 0;
-  return validationRules.filter((rule) => rule.check(password)).length;
+  return validationRules.filter(rule => rule.check(password)).length;
 };
 
-const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps> = ({ password }) => {
-  const strength = getPasswordStrength(password);
-  const strengthPercentage = (strength / validationRules.length) * 100;
-
+const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps> = ({ password, strength: providedStrength }) => {
+  const strength = providedStrength !== undefined ? providedStrength : (password ? getPasswordStrength(password) : 0);
+  
   const getStrengthColor = () => {
-    if (strengthPercentage <= 20) return 'bg-red-500';
-    if (strengthPercentage <= 40) return 'bg-orange-500';
-    if (strengthPercentage <= 60) return 'bg-yellow-500';
-    if (strengthPercentage <= 80) return 'bg-lime-500';
+    if (strength < 2) return 'bg-red-500';
+    if (strength < 4) return 'bg-yellow-500';
     return 'bg-green-500';
   };
 
   const getStrengthText = () => {
-    if (strengthPercentage <= 20) return 'Very Weak';
-    if (strengthPercentage <= 40) return 'Weak';
-    if (strengthPercentage <= 60) return 'Fair';
-    if (strengthPercentage <= 80) return 'Good';
+    if (strength < 2) return 'Weak';
+    if (strength < 4) return 'Medium';
     return 'Strong';
   };
 
+  const getStrengthPercent = () => {
+    return (strength / 5) * 100;
+  };
+
   return (
-    <div className="mt-2 space-y-2">
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full transition-all duration-300 ${getStrengthColor()}`}
-            style={{ width: `${strengthPercentage}%` }}
-          />
-        </div>
-        <span className="text-sm font-medium text-gray-600">{getStrengthText()}</span>
+    <div className="space-y-2">
+      <div className="h-2 rounded-full bg-gray-200">
+        <div
+          className={`h-full rounded-full ${getStrengthColor()}`}
+          style={{ width: `${getStrengthPercent()}%` }}
+        ></div>
       </div>
-      <ul className="space-y-1">
-        {validationRules.map((rule) => {
-          const isValid = rule.check(password);
-          return (
-            <li
-              key={rule.id}
-              className={`text-sm flex items-center gap-1 ${
-                isValid ? 'text-green-600' : 'text-gray-500'
-              }`}
-            >
-              {isValid ? (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              )}
-              {rule.label}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="flex justify-between text-xs">
+        <span className="text-gray-500">Password strength: {getStrengthText()}</span>
+      </div>
+      {password && (
+        <div className="mt-4">
+          <h4 className="text-sm font-medium mb-2">Password requirements:</h4>
+          <ul className="space-y-1 text-xs">
+            {validationRules.map((rule) => (
+              <li
+                key={rule.id}
+                className={`flex items-center ${
+                  rule.check(password) ? 'text-green-600' : 'text-gray-500'
+                }`}
+              >
+                <span className="mr-2">
+                  {rule.check(password) ? (
+                    <svg
+                      className="h-4 w-4 text-green-500"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-4 w-4 text-gray-300"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 110-12 6 6 0 010 12z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </span>
+                {rule.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
