@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, not_
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import UserCreate, UserLogin, UserResponse
+from app.schemas.user import UserCreate, UserResponse
+from app.schemas.auth import UserLogin
 from datetime import datetime
 import traceback
 import sys
@@ -49,6 +50,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         
         # Check if active user already exists with this email
         if db.query(User).filter(User.email == user_data.email, User.deleted_at.is_(None)).first():
+            print(f"Email already registered: {user_data.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
@@ -56,44 +58,35 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         
         # Check if active user already exists with this username
         if db.query(User).filter(User.username == user_data.username, User.deleted_at.is_(None)).first():
+            print(f"Username already taken: {user_data.username}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already taken"
             )
-
-        try:
-            # Create new user with email, username and hashed password
-            hashed_password = User.get_password_hash(user_data.password)
-            print(f"Password hashing successful")
-            
-            db_user = User(
-                email=user_data.email,
-                username=user_data.username,
-                hashed_password=hashed_password,
-                full_name=user_data.username  # Default full_name to username
-            )
-            print(f"User object created")
-            
-            db.add(db_user)
-            print(f"User added to session")
-            
-            db.commit()
-            print(f"Transaction committed")
-            
-            db.refresh(db_user)
-            print(f"User refreshed, id: {db_user.id}")
-            
-            return db_user
-        except Exception as inner_e:
-            print(f"Error during user creation: {str(inner_e)}")
-            print(traceback.format_exc())
-            db.rollback()
-            raise
+        
+        # Create new user
+        print("Password hashing successful")
+        user = User(
+            email=user_data.email,
+            username=user_data.username,
+            full_name=user_data.full_name if user_data.full_name else None,
+            phone_number=user_data.phone_number if user_data.phone_number else None,
+            hashed_password=User.get_password_hash(user_data.password)
+        )
+        print("User object created")
+        
+        db.add(user)
+        print("User added to session")
+        db.commit()
+        print("Transaction committed")
+        db.refresh(user)
+        print(f"User refreshed, id: {user.id}")
+        
+        return user
     except HTTPException as http_e:
         print(f"HTTP exception during registration: {http_e.detail}")
         raise
     except Exception as e:
-        db.rollback()
         print(f"Unexpected error during registration: {str(e)}")
         print(f"Error type: {type(e)}")
         print(traceback.format_exc())
@@ -154,6 +147,7 @@ def get_current_user(db: Session = Depends(get_db), x_user_email: str = Header(N
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+    
     return user
 
 @router.delete("/delete-account", response_model=dict)

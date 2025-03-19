@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Get the intended destination from location state or default to home page
+  const from = (location.state as any)?.from?.pathname || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +36,9 @@ const Login: React.FC = () => {
         duration: 3000 
       });
       
-      // Force immediate navigation to home instead of waiting for auth check
-      console.log('Login page: Redirecting to home page immediately');
-      navigate('/');
+      // Navigate to the page the user was trying to access, or home page
+      console.log(`Login page: Redirecting to ${from}`);
+      navigate(from, { replace: true });
       
     } catch (error: any) {
       console.error('Login page: Login failed:', error);

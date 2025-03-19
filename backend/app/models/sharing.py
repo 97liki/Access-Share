@@ -36,14 +36,14 @@ class Share(Base):
 
     def get_shareable(self, db):
         """Get the actual shareable object based on type and ID"""
-        from app.models.blood_donation import BloodDonationRequest, BloodDonationListing
+        from app.models.blood_donation import BloodDonationRequest
         from app.models.assistive_device import AssistiveDeviceListing
         from app.models.caregiver import CaregiverListing
 
         if self.shareable_type == ShareableType.BLOOD_REQUEST:
             return db.query(BloodDonationRequest).get(self.shareable_id)
         elif self.shareable_type == ShareableType.BLOOD_LISTING:
-            return db.query(BloodDonationListing).get(self.shareable_id)
+            return db.query(BloodDonationRequest).get(self.shareable_id)
         elif self.shareable_type == ShareableType.DEVICE_LISTING:
             return db.query(AssistiveDeviceListing).get(self.shareable_id)
         elif self.shareable_type == ShareableType.CAREGIVER_LISTING:

@@ -13,12 +13,16 @@ class User(Base):
     username = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
     
     # Add role field with a server_default so it works with existing data
     role = Column(String(50), server_default=text("'user'"), nullable=False)
     
     # Add full_name field for UserInfo schema compatibility
     full_name = Column(String(255), server_default=text("''"), nullable=True)
+    
+    # Add phone_number field
+    phone_number = Column(String(20), nullable=True)
     
     # Add deleted_at field for account deletion
     deleted_at = Column(DateTime, nullable=True)

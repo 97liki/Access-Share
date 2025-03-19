@@ -11,6 +11,8 @@ interface RegisterData {
   email: string;
   username: string;
   password: string;
+  full_name?: string;
+  phone_number?: string;
 }
 
 // API response types
@@ -629,7 +631,10 @@ export const caregiverApi = {
 
   updateCaregiverStatus: async (id: number, status: string): Promise<ApiResponse<any>> => {
     try {
-      const response = await axios.patch(`${API_URL}/caregivers/listings/${id}/status?status=${status}`, {}, {
+      const response = await axios.patch(`${API_URL}/caregivers/listings/${id}/status`, {}, {
+        params: {
+          status: status
+        },
         headers: {
           'X-User-Email': localStorage.getItem('userEmail') || ''
         }
@@ -840,7 +845,7 @@ export const caregiversApi = {
   },
 
   updateCaregiver: async (id: number, data: Partial<CaregiverListing>): Promise<ApiResponse<CaregiverListing>> => {
-    const response = await axios.put(`${API_URL}/caregivers/listings/${id}`, data, {
+    const response = await axios.patch(`${API_URL}/caregivers/listings/${id}`, data, {
       headers: {
         'X-User-Email': localStorage.getItem('userEmail') || ''
       }
@@ -869,7 +874,10 @@ export const caregiversApi = {
 
   updateCaregiverStatus: async (id: number, status: string): Promise<ApiResponse<any>> => {
     try {
-      const response = await axios.patch(`${API_URL}/caregivers/listings/${id}/status?status=${status}`, {}, {
+      const response = await axios.patch(`${API_URL}/caregivers/listings/${id}/status`, {}, {
+        params: {
+          status: status
+        },
         headers: {
           'X-User-Email': localStorage.getItem('userEmail') || ''
         }
@@ -884,4 +892,75 @@ export const caregiversApi = {
       };
     }
   },
+};
+
+// User API endpoints
+export const userApi = {
+  getProfile: async () => {
+    try {
+      console.log('API: Fetching user profile');
+      const response = await axios.get(`${API_URL}/users/me`);
+      console.log('API: User profile response:', response.data);
+      // Direct response or normalized response
+      return response.data.data || response.data;
+    } catch (error) {
+      console.error('API: Error fetching user profile:', error);
+      // If we can't get the profile from users endpoint, try from auth endpoint
+      try {
+        console.log('API: Falling back to auth/me endpoint');
+        const authResponse = await axios.get(`${API_URL}/auth/me`);
+        console.log('API: Auth profile response:', authResponse.data);
+        return authResponse.data.data || authResponse.data;
+      } catch (fallbackError) {
+        console.error('API: Fallback auth/me also failed:', fallbackError);
+        throw error; // Throw the original error
+      }
+    }
+  },
+
+  updateProfile: async (data: {
+    username?: string;
+    full_name?: string;
+    phone_number?: string;
+  }) => {
+    try {
+      console.log('API: Updating user profile with data:', data);
+      const response = await axios.put(`${API_URL}/users/me`, data);
+      console.log('API: Profile update response:', response.data);
+      return response.data.data || response.data;
+    } catch (error) {
+      console.error('API: Error updating profile:', error);
+      throw error;
+    }
+  },
+
+  updateUserProfile: async (data: Partial<User>) => {
+    try {
+      console.log('API: Updating user profile with:', data);
+      const response = await axios.put(`${API_URL}/users/me`, data);
+      console.log('API: Update profile response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API: Error updating profile:', error);
+      throw error;
+    }
+  },
+  
+  changePassword: async (data: {
+    current_password: string;
+    new_password: string;
+  }) => {
+    try {
+      console.log('API: Changing password');
+      const response = await axios.post(`${API_URL}/users/me/change-password`, data);
+      console.log('API: Password change response:', response.data);
+      return {
+        success: true,
+        message: response.data.message || 'Password changed successfully'
+      };
+    } catch (error) {
+      console.error('API: Error changing password:', error);
+      throw error;
+    }
+  }
 };

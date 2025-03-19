@@ -43,11 +43,18 @@ const queryClient = new QueryClient({
 
 const AnimatedRoutes = () => {
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // Don't redirect during initial loading
+  if (isLoading) {
+    return null; // Or a loading spinner
+  }
 
-  // Redirect authenticated users away from auth pages
+  // Only redirect authenticated users away from auth pages
   if (isAuthenticated && ['/login', '/register'].includes(location.pathname)) {
-    return <Navigate to="/" replace />;
+    // If there's a "from" state, redirect there instead of home
+    const from = location.state?.from?.pathname || '/';
+    return <Navigate to={from} replace />;
   }
 
   return (

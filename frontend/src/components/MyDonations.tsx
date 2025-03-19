@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { bloodApi, devicesApi, caregiversApi } from '../services/api';
+import { bloodApi, devicesApi, caregiversApi, assistiveDeviceApi } from '../services/api';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -44,7 +44,7 @@ const MyDonations = ({ type = 'blood' }: MyDonationsProps) => {
     isError: isErrorCaregivers,
   } = useQuery({
     queryKey: ['caregivers', 'my'],
-    queryFn: () => caregiversApi.getAll({ is_mine: 'true' }),
+    queryFn: () => caregiversApi.getAll({ is_mine: true as any }),
     enabled: isAuthenticated && (activeTab === 'caregiver' || !activeTab),
   });
 
@@ -64,7 +64,7 @@ const MyDonations = ({ type = 'blood' }: MyDonationsProps) => {
   // Device status mutation
   const updateDeviceStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => 
-      devicesApi.updateDevice(id, { available: status as any }),
+      assistiveDeviceApi.updateDeviceStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['devices', 'my'] });
       toast.success('Device status updated successfully');
@@ -78,7 +78,7 @@ const MyDonations = ({ type = 'blood' }: MyDonationsProps) => {
   // Caregiver status mutation
   const updateCaregiverStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => 
-      caregiversApi.updateCaregiver(id, { availability_status: status }),
+      caregiversApi.updateCaregiverStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['caregivers', 'my'] });
       toast.success('Caregiver status updated successfully');
