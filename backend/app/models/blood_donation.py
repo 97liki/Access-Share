@@ -1,7 +1,15 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
+import enum
+
+class BloodDonationStatus(str, enum.Enum):
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+    PENDING_VERIFICATION = "pending_verification"
+    RESERVED = "reserved"
+    EXPIRED = "expired"
 
 class BloodDonationRequest(Base):
     __tablename__ = "blood_donation_requests"
@@ -13,6 +21,7 @@ class BloodDonationRequest(Base):
     contact_number = Column(String(20), nullable=False)
     notes = Column(Text, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(String(50), nullable=False, default="available")  # available, unavailable, pending_verification, reserved, expired
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

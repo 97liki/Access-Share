@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { bloodApi } from '../services/api';
+import { bloodApi, authApi } from '../services/api';
 import { BloodDonation as BloodDonationType } from '../types/api';
 import { toast } from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -20,10 +20,64 @@ interface DonationFormData {
   notes?: string;
 }
 
+const BloodDonationCard = ({ donation }: { donation: BloodDonationType }) => {
+  const { data: userData } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => authApi.me(),
+    enabled: !!localStorage.getItem('userEmail')
+  });
+
+  const isMyListing = userData?.id === donation.user_id;
+  const status = donation.status || 'unknown';
+
+  return (
+    <div className={`bg-white rounded-lg shadow-md p-6 ${isMyListing ? 'bg-blue-50 border-2 border-blue-200' : ''}`}>
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">{donation.blood_type}</h3>
+          <p className="text-sm text-gray-500">{donation.location}</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          {isMyListing && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              My Listing
+            </span>
+          )}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            status === 'available' ? 'bg-green-100 text-green-800' :
+            status === 'unavailable' ? 'bg-red-100 text-red-800' :
+            status === 'pending_verification' ? 'bg-yellow-100 text-yellow-800' :
+            status === 'reserved' ? 'bg-purple-100 text-purple-800' :
+            status === 'expired' ? 'bg-gray-100 text-gray-800' :
+            'bg-gray-100 text-gray-800'
+          }`}>
+            {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+          </span>
+        </div>
+      </div>
+      <div className="mt-4">
+        <p className="text-sm text-gray-500">Contact: {donation.contact_number}</p>
+        {donation.notes && (
+          <p className="mt-2 text-sm text-gray-500">{donation.notes}</p>
+        )}
+      </div>
+      <div className="mt-6">
+        <a
+          href={`tel:${donation.contact_number}`}
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+          Call Now
+        </a>
+      </div>
+    </div>
+  );
+};
+
 const BloodDonation = () => {
   const [filters, setFilters] = useState({
     blood_type: '',
     location: '',
+    status: '', // Set to empty string instead of 'available'
   });
   const location = useLocation();
   const navigate = useNavigate();
@@ -213,43 +267,68 @@ const BloodDonation = () => {
 
         {/* Show filters only on main page or request page */}
         {(!isDonateView || isRequestView) && (
-          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="blood_type" className="block text-sm font-medium text-gray-700">
-                Blood Type
-              </label>
-              <select
-                id="blood_type"
-                name="blood_type"
-                value={filters.blood_type}
-                onChange={handleFilterChange}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-              >
-                <option value="">All Types</option>
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-              </select>
-            </div>
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Filter Blood Donations</h3>
+              <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="blood_type" className="block text-sm font-medium text-gray-700">
+                    Blood Type
+                  </label>
+                  <select
+                    id="blood_type"
+                    name="blood_type"
+                    value={filters.blood_type}
+                    onChange={handleFilterChange}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                  >
+                    <option value="">All Blood Types</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
 
-            <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-                Location
-              </label>
-              <input
-                type="text"
-                name="location"
-                id="location"
-                value={filters.location}
-                onChange={handleFilterChange}
-                placeholder="Enter city or zip code"
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              />
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    id="location"
+                    value={filters.location}
+                    onChange={handleFilterChange}
+                    className="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    placeholder="e.g. New York"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                    Availability
+                  </label>
+                  <select
+                    id="status"
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="available">Available Only</option>
+                    <option value="unavailable">Unavailable Only</option>
+                    <option value="pending_verification">Pending Verification</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="expired">Expired</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -388,36 +467,7 @@ const BloodDonation = () => {
               ) : (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                   {data?.data?.items?.map((donation: BloodDonationType) => (
-                    <div
-                      key={donation.id}
-                      className="bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-lg transition-shadow duration-200"
-                    >
-                      <div className="p-6">
-                        <div className="flex items-center justify-between">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                            {donation.blood_type}
-                          </span>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Available
-                          </span>
-                        </div>
-                        <div className="mt-4">
-                          <p className="text-sm text-gray-500">Location: {donation.location}</p>
-                          <p className="text-sm text-gray-500">Contact: {donation.contact_number}</p>
-                          {donation.notes && (
-                            <p className="mt-2 text-sm text-gray-500">{donation.notes}</p>
-                          )}
-                        </div>
-                        <div className="mt-6">
-                          <a
-                            href={`tel:${donation.contact_number}`}
-                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                          >
-                            Call Now
-                          </a>
-                        </div>
-                      </div>
-                    </div>
+                    <BloodDonationCard key={donation.id} donation={donation} />
                   ))}
                 </div>
               )}

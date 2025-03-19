@@ -1,7 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
+import enum
+
+class DeviceAvailabilityStatus(str, enum.Enum):
+    AVAILABLE = "available"
+    PENDING = "pending"
+    RESERVED = "reserved"
+    ON_HOLD = "on_hold"
+    TAKEN = "taken"
+    MAINTENANCE = "maintenance"
+    INACTIVE = "inactive"
 
 class AssistiveDeviceListing(Base):
     __tablename__ = "assistive_device_listings"
@@ -14,7 +24,7 @@ class AssistiveDeviceListing(Base):
     description = Column(Text, nullable=False)
     location = Column(String(255), nullable=False)
     contact_info = Column(String(100), nullable=False)
-    available = Column(String(20), nullable=False, default="available")  # available, pending, taken
+    available = Column(String(50), nullable=False, default="available")  # available, pending, reserved, on_hold, taken, maintenance, inactive
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

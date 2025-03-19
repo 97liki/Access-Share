@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { DeviceListing } from '../types/api';
-import { devicesApi } from '../services/api';
+import { devicesApi, authApi } from '../services/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // Import assets
@@ -20,10 +20,63 @@ interface DeviceFormData {
   contact_info: string;
 }
 
+const DeviceCard = ({ device }: { device: DeviceListing }) => {
+  const { data: userData } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => authApi.me(),
+    enabled: !!localStorage.getItem('userEmail')
+  });
+
+  const isMyListing = userData?.id === device.donor_id;
+  const status = device.available || 'unknown';
+
+  return (
+    <div className={`bg-white rounded-lg shadow-md p-6 ${isMyListing ? 'bg-blue-50 border-2 border-blue-200' : ''}`}>
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">{device.device_name}</h3>
+          <p className="text-sm text-gray-500">{device.location}</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          {isMyListing && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              My Listing
+            </span>
+          )}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            status === 'available' ? 'bg-green-100 text-green-800' :
+            status === 'unavailable' ? 'bg-red-100 text-red-800' :
+            status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+            status === 'reserved' ? 'bg-purple-100 text-purple-800' :
+            'bg-gray-100 text-gray-800'
+          }`}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </span>
+        </div>
+      </div>
+      <div className="mt-4">
+        <p className="text-sm text-gray-500">Type: {device.device_type}</p>
+        <p className="text-sm text-gray-500">Condition: {device.condition}</p>
+        <p className="text-sm text-gray-500">Contact: {device.contact_info}</p>
+        <p className="mt-2 text-sm text-gray-500">{device.description}</p>
+      </div>
+      <div className="mt-6">
+        <a
+          href={`tel:${device.contact_info}`}
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+          Contact Now
+        </a>
+      </div>
+    </div>
+  );
+};
+
 const AssistiveDevices = () => {
   const [filters, setFilters] = useState({
     device_type: '',
     location: '',
+    available: '',
   });
   const location = useLocation();
   const navigate = useNavigate();
@@ -149,42 +202,70 @@ const AssistiveDevices = () => {
           )}
         </div>
 
-        {/* Show filters on main page or request page */}
-        {(!isDonateView || isRequestView) && (
-          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="device_type" className="block text-sm font-medium text-gray-700">
-                Device Type
-              </label>
-              <select
-                id="device_type"
-                name="device_type"
-                value={filters.device_type}
-                onChange={handleFilterChange}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-              >
-                <option value="">All Types</option>
-                <option value="wheelchair">Wheelchair</option>
-                <option value="walker">Walker</option>
-                <option value="hearing_aid">Hearing Aid</option>
-                <option value="crutches">Crutches</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
+        {/* Filters section */}
+        {(isRequestView || !isDonateView) && (
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Filter Devices</h3>
+              <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="device_type" className="block text-sm font-medium text-gray-700">
+                    Device Type
+                  </label>
+                  <select
+                    id="device_type"
+                    name="device_type"
+                    value={filters.device_type}
+                    onChange={handleFilterChange}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                  >
+                    <option value="">All Types</option>
+                    <option value="Wheelchair">Wheelchair</option>
+                    <option value="Walker">Walker</option>
+                    <option value="Crutches">Crutches</option>
+                    <option value="Hearing Aid">Hearing Aid</option>
+                    <option value="Prosthetic">Prosthetic</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
 
-            <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-                Location
-              </label>
-              <input
-                type="text"
-                name="location"
-                id="location"
-                value={filters.location}
-                onChange={handleFilterChange}
-                placeholder="Enter city or zip code"
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              />
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    id="location"
+                    value={filters.location}
+                    onChange={handleFilterChange}
+                    className="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    placeholder="e.g. New York"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="available" className="block text-sm font-medium text-gray-700">
+                    Availability
+                  </label>
+                  <select
+                    id="available"
+                    name="available"
+                    value={filters.available}
+                    onChange={handleFilterChange}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="available">Available Only</option>
+                    <option value="pending">Pending Only</option>
+                    <option value="reserved">Reserved Only</option>
+                    <option value="on_hold">On Hold Only</option>
+                    <option value="taken">Taken Only</option>
+                    <option value="maintenance">Maintenance Only</option>
+                    <option value="inactive">Inactive Only</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -315,33 +396,9 @@ const AssistiveDevices = () => {
                 <p className="mt-2 text-sm text-gray-500">Try adjusting your filters or check back later</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 {data?.data?.items?.map((device: DeviceListing) => (
-                  <div
-                    key={device.id}
-                    className="bg-white overflow-hidden shadow rounded-lg border border-gray-200 hover:shadow-lg transition-shadow duration-200"
-                  >
-                    <div className="p-6">
-                      <h3 className="text-lg font-medium text-gray-900">{device.device_name}</h3>
-                      <p className="mt-1 text-sm text-gray-500">{device.description}</p>
-                      <div className="mt-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {device.condition}
-                        </span>
-                        <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {device.location}
-                        </span>
-                      </div>
-                      <div className="mt-6">
-                        <button
-                          onClick={() => handleContactOwner(device)}
-                          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                        >
-                          Contact Owner
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <DeviceCard key={device.id} device={device} />
                 ))}
               </div>
             )}

@@ -25,6 +25,10 @@ class AvailabilityStatus(str, enum.Enum):
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
     BUSY = "busy"
+    TEMPORARILY_UNAVAILABLE = "temporarily_unavailable"
+    ON_VACATION = "on_vacation"
+    LIMITED_AVAILABILITY = "limited_availability"
+    BOOKED = "booked"
 
 class RequestStatus(str, enum.Enum):
     PENDING = "pending"

@@ -10,6 +10,7 @@ import {
   DevicePhoneMobileIcon,
   BellIcon,
 } from '@heroicons/react/24/outline';
+import MyDonations from '../components/MyDonations';
 
 // Mock data - replace with API call
 const userProfile = {
@@ -376,12 +377,26 @@ export default function Profile() {
             </div>
           </div>
 
+          {/* My Donations */}
+          <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
+            <div className="px-4 sm:px-0">
+              <h2 className="text-base font-semibold leading-7 text-gray-900">My Donations</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-600">
+                Manage your blood donations, assistive devices, and caregiver services.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <MyDonations />
+            </div>
+          </div>
+
           {/* Activity History */}
           <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
             <div className="px-4 sm:px-0">
               <h2 className="text-base font-semibold leading-7 text-gray-900">Activity History</h2>
               <p className="mt-1 text-sm leading-6 text-gray-600">
-                View your recent activity and interactions.
+                Recent activity on your account.
               </p>
             </div>
 

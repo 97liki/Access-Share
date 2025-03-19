@@ -1,8 +1,8 @@
 """auto
 
-Revision ID: b7c3b19f255c
+Revision ID: 36d29bb68204
 Revises: 
-Create Date: 2025-03-16 12:08:39.306184
+Create Date: 2025-03-19 12:18:33.948719
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b7c3b19f255c'
+revision: str = '36d29bb68204'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -44,7 +44,7 @@ def upgrade() -> None:
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('location', sa.String(length=255), nullable=False),
     sa.Column('contact_info', sa.String(length=100), nullable=False),
-    sa.Column('available', sa.String(length=20), nullable=False),
+    sa.Column('available', sa.String(length=50), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['donor_id'], ['users.id'], ),
@@ -59,6 +59,7 @@ def upgrade() -> None:
     sa.Column('contact_number', sa.String(length=20), nullable=False),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('status', sa.String(length=50), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
@@ -74,7 +75,7 @@ def upgrade() -> None:
     sa.Column('location', sa.String(), nullable=False),
     sa.Column('contact_info', sa.String(), nullable=False),
     sa.Column('hourly_rate', sa.Float(), nullable=False),
-    sa.Column('availability_status', sa.Enum('AVAILABLE', 'UNAVAILABLE', 'BUSY', name='availabilitystatus'), nullable=False),
+    sa.Column('availability_status', sa.Enum('AVAILABLE', 'UNAVAILABLE', 'BUSY', 'TEMPORARILY_UNAVAILABLE', 'ON_VACATION', 'LIMITED_AVAILABILITY', 'BOOKED', name='availabilitystatus'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['caregiver_id'], ['users.id'], ),

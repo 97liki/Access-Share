@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -8,7 +8,7 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import { caregiversApi } from '../services/api';
+import { caregiversApi, caregiverApi, authApi } from '../services/api';
 import { CaregiverListing } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -33,12 +33,78 @@ const experienceLevels = [
   { id: 'expert', name: 'Expert' },
 ];
 
+const CaregiverCard = ({ caregiver }: { caregiver: CaregiverListing }) => {
+  const { data: userData } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => authApi.me(),
+    enabled: !!localStorage.getItem('userEmail')
+  });
+
+  const isMyListing = userData?.id === caregiver.caregiver_id;
+  const status = caregiver.availability_status || 'unknown';
+
+  const handleContactCaregiver = async (caregiver: CaregiverListing) => {
+    try {
+      await caregiversApi.contactCaregiver(caregiver.id, "I'm interested in your services");
+      toast.success('Message sent to caregiver successfully!');
+    } catch (error) {
+      console.error('Error contacting caregiver:', error);
+      toast.error('Failed to send message to caregiver');
+    }
+  };
+
+  return (
+    <div className={`bg-white rounded-lg shadow-md p-6 ${isMyListing ? 'bg-blue-50 border-2 border-blue-200' : ''}`}>
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">{caregiver.service_type}</h3>
+          <p className="text-sm text-gray-500">{caregiver.location}</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          {isMyListing && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              My Listing
+            </span>
+          )}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            status === 'available' ? 'bg-green-100 text-green-800' :
+            status === 'busy' ? 'bg-yellow-100 text-yellow-800' :
+            status === 'unavailable' ? 'bg-red-100 text-red-800' :
+            status === 'temporarily_unavailable' ? 'bg-orange-100 text-orange-800' :
+            status === 'on_vacation' ? 'bg-purple-100 text-purple-800' :
+            status === 'limited_availability' ? 'bg-blue-100 text-blue-800' :
+            status === 'booked' ? 'bg-indigo-100 text-indigo-800' :
+            'bg-gray-100 text-gray-800'
+          }`}>
+            {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+          </span>
+        </div>
+      </div>
+      <div className="mt-4">
+        <p className="text-sm text-gray-500">Experience: {caregiver.experience_level}</p>
+        <p className="text-sm text-gray-500">Rate: ${caregiver.hourly_rate}/hour</p>
+        <p className="text-sm text-gray-500">Contact: {caregiver.contact_info}</p>
+        <p className="mt-2 text-sm text-gray-500">{caregiver.description}</p>
+      </div>
+      <div className="mt-6">
+        <button
+          onClick={() => handleContactCaregiver(caregiver)}
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+          Contact Caregiver
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function Caregivers() {
   const [filters, setFilters] = useState({
     service_type: '',
     experience_level: '',
     location: '',
     search: '',
+    availability_status: '',
   });
 
   const location = useLocation();
@@ -149,11 +215,11 @@ export default function Caregivers() {
               {isOfferView ? 'Offer Caregiving Services' : isFindView ? 'Find Caregivers' : 'Caregivers'}
             </h1>
             <p className="mt-3 text-xl text-gray-500 sm:mt-4">
-              {isOfferView 
-                ? 'Register as a caregiver and offer your services to those in need' 
+              {isOfferView
+                ? 'Register as a caregiver to offer your services to those in need'
                 : isFindView
-                  ? 'Find experienced caregivers that match your requirements'
-                  : 'Connect with experienced caregivers or offer your caregiving services'}
+                ? 'Find caregivers that match your requirements'
+                : 'Connect with caregivers in your area or offer your services to help others in need.'}
             </p>
             
             {/* Navigation buttons if we're on the main caregivers page */}
@@ -192,65 +258,117 @@ export default function Caregivers() {
               </div>
             )}
 
-            {/* Search and filter section */}
-            {isFindView && (
-              <div className="mt-8">
-                <div className="flex flex-col gap-6">
-                  {/* Search bar */}
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                    </div>
-                    <input
-                      type="text"
-                      value={filters.search}
-                      onChange={(e) => handleFilterChange('search', e.target.value)}
-                      className="block w-full rounded-md border-0 py-1.5 pl-10 pr-14 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6"
-                      placeholder="Search caregivers..."
-                    />
-                  </div>
-
-                  {/* Filters */}
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex-1">
+            {/* Filters */}
+            {(isFindView || !isOfferView) && (
+              <div className="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Filter Caregivers</h3>
+                  <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-5">
+                    {/* Service Type Filter */}
+                    <div>
+                      <label htmlFor="service_type" className="block text-sm font-medium text-gray-700">
+                        Service Type
+                      </label>
                       <select
-                        id="service-type"
+                        id="service_type"
+                        name="service_type"
                         value={filters.service_type}
                         onChange={(e) => handleFilterChange('service_type', e.target.value)}
-                        className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6"
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
                       >
                         <option value="">All Service Types</option>
                         {serviceTypes.map((type) => (
-                          <option key={type.id} value={type.id}>
+                          <option key={type.id} value={type.name}>
                             {type.name}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div className="flex-1">
+
+                    {/* Experience Level Filter */}
+                    <div>
+                      <label htmlFor="experience_level" className="block text-sm font-medium text-gray-700">
+                        Experience Level
+                      </label>
                       <select
-                        id="experience-level"
+                        id="experience_level"
+                        name="experience_level"
                         value={filters.experience_level}
                         onChange={(e) => handleFilterChange('experience_level', e.target.value)}
-                        className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6"
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
                       >
                         <option value="">All Experience Levels</option>
                         {experienceLevels.map((level) => (
-                          <option key={level.id} value={level.id}>
+                          <option key={level.id} value={level.name}>
                             {level.name}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        id="location"
-                        value={filters.location}
-                        onChange={(e) => handleFilterChange('location', e.target.value)}
-                        placeholder="Enter location..."
-                        className="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6"
-                      />
+
+                    {/* Location Filter */}
+                    <div>
+                      <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                        Location
+                      </label>
+                      <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <MapPinIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </div>
+                        <input
+                          type="text"
+                          name="location"
+                          id="location"
+                          value={filters.location}
+                          onChange={(e) => handleFilterChange('location', e.target.value)}
+                          className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                          placeholder="Any location"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Search Filter */}
+                    <div>
+                      <label htmlFor="search" className="block text-sm font-medium text-gray-700">
+                        Search
+                      </label>
+                      <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </div>
+                        <input
+                          type="text"
+                          name="search"
+                          id="search"
+                          value={filters.search}
+                          onChange={(e) => handleFilterChange('search', e.target.value)}
+                          className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                          placeholder="Search caregivers..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Availability Status Filter */}
+                    <div>
+                      <label htmlFor="availability_status" className="block text-sm font-medium text-gray-700">
+                        Availability
+                      </label>
+                      <select
+                        id="availability_status"
+                        name="availability_status"
+                        value={filters.availability_status}
+                        onChange={(e) => handleFilterChange('availability_status', e.target.value)}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="available">Available Only</option>
+                        <option value="busy">Busy Only</option>
+                        <option value="unavailable">Unavailable Only</option>
+                        <option value="temporarily_unavailable">Temporarily Unavailable Only</option>
+                        <option value="on_vacation">On Vacation Only</option>
+                        <option value="limited_availability">Limited Availability Only</option>
+                        <option value="booked">Booked Only</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -272,61 +390,7 @@ export default function Caregivers() {
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {data?.data?.items?.map((caregiver: CaregiverListing, index: number) => (
-                <motion.div
-                  key={caregiver.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
-                >
-                  <div className="flex-shrink-0">
-                    <img
-                      className="h-48 w-full object-cover"
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(caregiver.service_type)}&background=random`}
-                      alt={caregiver.service_type}
-                    />
-                  </div>
-                  <div className="flex flex-1 flex-col justify-between p-6">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium text-gray-900">
-                          {caregiver.service_type}
-                        </h3>
-                        <div className="flex items-center">
-                          <StarIconSolid className="h-5 w-5 text-yellow-400" aria-hidden="true" />
-                          <span className="ml-1 text-sm text-gray-600">{caregiver.rating || 'N/A'}</span>
-                          <span className="ml-1 text-sm text-gray-500">({caregiver.review_count || 0} reviews)</span>
-                        </div>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500">
-                        <MapPinIcon className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" aria-hidden="true" />
-                        {caregiver.location}
-                      </div>
-                      <p className="mt-3 text-sm text-gray-500">{caregiver.description}</p>
-                      <div className="mt-4">
-                        <span className="inline-flex items-center rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 ring-1 ring-inset ring-primary-600/20">
-                          {serviceTypes.find((type) => type.id === caregiver.service_type)?.name || caregiver.service_type}
-                        </span>
-                        <span className="ml-2 inline-flex items-center rounded-md bg-secondary-50 px-2 py-1 text-xs font-medium text-secondary-700 ring-1 ring-inset ring-secondary-600/20">
-                          {caregiver.experience_level}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-6 flex items-center justify-between">
-                      <div className="text-lg font-medium text-gray-900">
-                        ${caregiver.hourly_rate}
-                        <span className="text-sm font-normal text-gray-500">/hour</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleContactCaregiver(caregiver)}
-                        className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                      >
-                        Contact
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
+                <CaregiverCard key={caregiver.id} caregiver={caregiver} />
               ))}
             </div>
           )}

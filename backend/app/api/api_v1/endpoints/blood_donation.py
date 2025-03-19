@@ -56,6 +56,8 @@ def get_blood_requests(
     limit: int = 100,
     blood_type: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
+    status: Optional[str] = Query(None, description="Filter by status: 'available', 'unavailable', 'pending_verification', 'reserved', 'expired', or empty for all"),
+    is_mine: Optional[bool] = Query(None, description="Show only the current user's blood donation requests"),
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
@@ -74,6 +76,11 @@ def get_blood_requests(
         query = query.filter(BloodDonationRequest.blood_type == blood_type)
     if location and location.strip():
         query = query.filter(BloodDonationRequest.location == location)
+    if status and status.strip():
+        query = query.filter(BloodDonationRequest.status == status)
+    # Filter by current user's blood donation requests if is_mine is true
+    if is_mine:
+        query = query.filter(BloodDonationRequest.user_id == user.id)
         
     # Fix for null updated_at values
     current_time = datetime.now()
@@ -120,6 +127,13 @@ def read_blood_request(
     request = db.query(BloodDonationRequest).filter(BloodDonationRequest.id == request_id).first()
     if not request:
         raise HTTPException(status_code=404, detail="Blood donation request not found")
+    
+    # Check if user is authorized to view this request
+    if request.user_id != user.id:
+        # Check if user is a donor and the request is available
+        if not user.is_donor or request.status != 'available':
+            raise HTTPException(status_code=403, detail="Not authorized to view this request")
+    
     return request
 
 @router.post("/responses", response_model=BloodDonationResponseResponse)
@@ -160,6 +174,7 @@ def create_blood_response(
 def get_blood_responses(
     skip: int = 0,
     limit: int = 100,
+    is_mine: Optional[bool] = Query(None, description="Show only the current user's blood donation responses"),
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
@@ -172,6 +187,10 @@ def get_blood_responses(
         raise HTTPException(status_code=404, detail="User not found")
 
     query = db.query(BloodDonationResponse)
+    
+    # Filter by current user's responses if is_mine is true
+    if is_mine:
+        query = query.filter(BloodDonationResponse.donor_id == user.id)
     
     # Get total count for pagination
     total = query.count()
@@ -190,3 +209,79 @@ def get_blood_responses(
         "size": limit,
         "pages": pages
     }
+
+@router.delete("/requests/{request_id}", response_model=None)
+def delete_blood_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    email: str = Header(None, alias="X-User-Email")
+):
+    """Delete a blood donation request"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    request = db.query(BloodDonationRequest).filter(BloodDonationRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Blood donation request not found")
+    
+    if request.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this request")
+    
+    db.delete(request)
+    db.commit()
+    return {"message": "Blood donation request deleted successfully"}
+
+@router.patch("/requests/{request_id}/status", response_model=BloodDonationRequestResponse)
+def update_blood_request_status(
+    request_id: int,
+    status: str = Query(..., description="New status: 'available', 'unavailable', 'pending_verification', 'reserved', 'expired'"),
+    db: Session = Depends(get_db),
+    email: str = Header(None, alias="X-User-Email")
+):
+    """Update the status of a blood donation request"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    request = db.query(BloodDonationRequest).filter(BloodDonationRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Blood donation request not found")
+    
+    if request.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this request")
+    
+    # Add status field if it doesn't exist
+    if not hasattr(request, 'status'):
+        raise HTTPException(status_code=500, detail="Status field not available on this model")
+    
+    valid_statuses = ['available', 'unavailable', 'pending_verification', 'reserved', 'expired']
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {', '.join(valid_statuses)}")
+    
+    # Validate status transitions
+    invalid_transitions = {
+        'expired': ['available', 'pending_verification'],  # Can't reactivate expired requests
+        'reserved': ['available'],  # Can't make reserved requests available
+    }
+    
+    if request.status in invalid_transitions and status in invalid_transitions[request.status]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot change status from '{request.status}' to '{status}'"
+        )
+    
+    request.status = status
+    request.updated_at = datetime.now()
+    
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    
+    return request
