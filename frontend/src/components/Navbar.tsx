@@ -33,7 +33,7 @@ const Navbar = () => {
       <nav className="bg-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex">
+            <div className="flex items-center">
               <Link to="/" className="flex-shrink-0 flex items-center">
                 <span className="text-2xl font-bold text-primary-600">AccessShare</span>
               </Link>
@@ -48,14 +48,14 @@ const Navbar = () => {
     <nav className="bg-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex">
+          <div className="flex items-center">
             {/* Logo */}
             <Link to="/" className="flex-shrink-0 flex items-center px-3 py-2 rounded-md text-sm font-medium text-primary-600 hover:text-primary-700">
               <span className="text-2xl font-bold">AccessShare</span>
             </Link>
 
             {/* Feature Links - Always visible */}
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-4 sm:items-center">
               {featureLinks.map((link) => (
                 <Link
                   key={link.name}
