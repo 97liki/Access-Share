@@ -86,6 +86,8 @@ def get_caregiver_listings(
     experience_level: Optional[str] = None,
     location: Optional[str] = None,
     search: Optional[str] = None,
+    availability_status: Optional[str] = Query(None, description="Filter by availability status: 'available', 'busy', 'unavailable', 'temporarily_unavailable', 'on_vacation', 'limited_availability', 'booked', or empty for all"),
+    is_mine: Optional[str] = Query(None, description="Filter for listings created by the current user (true/false)"),
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
@@ -149,6 +151,28 @@ def get_caregiver_listings(
         if search and search.strip():
             search_term = f"%{search.strip()}%"
             query = query.filter(CaregiverListing.description.ilike(search_term))
+            
+        # Filter by availability status if provided
+        if availability_status and availability_status.strip():
+            try:
+                # Try to map the string value to enum
+                mapped_status = None
+                for enum_val in AvailabilityStatus:
+                    if availability_status.lower() == enum_val.value.lower():
+                        mapped_status = enum_val
+                        break
+                
+                if mapped_status:
+                    query = query.filter(CaregiverListing.availability_status == mapped_status)
+                else:
+                    print(f"Warning: Unable to map availability_status '{availability_status}' to a valid enum value")
+            except Exception as e:
+                print(f"Error mapping availability_status: {str(e)}")
+                print(traceback.format_exc())
+        
+        # Filter by user ID if is_mine=true
+        if is_mine and is_mine.lower() == 'true':
+            query = query.filter(CaregiverListing.caregiver_id == user.id)
         
         # Get total count for pagination
         total = query.count()
@@ -194,6 +218,57 @@ def read_caregiver_listing(
             detail="Caregiver listing not found"
         )
     return listing
+
+@router.patch("/listings/{listing_id}/status", response_model=CaregiverListingResponse)
+def update_caregiver_listing_status(
+    listing_id: int,
+    status: str = Query(..., description="New status: 'available', 'unavailable', 'busy', 'temporarily_unavailable', 'on_vacation', 'limited_availability', 'booked'"),
+    db: Session = Depends(get_db),
+    email: str = Header(None, alias="X-User-Email")
+):
+    """Update the availability status of a caregiver listing"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    listing = db.query(CaregiverListing).filter(CaregiverListing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Caregiver listing not found")
+    
+    if listing.caregiver_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this listing")
+    
+    # Validate and map status to enum
+    try:
+        valid_statuses = [status.value for status in AvailabilityStatus]
+        if status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {', '.join(valid_statuses)}")
+            
+        mapped_status = None
+        for enum_val in AvailabilityStatus:
+            if status.lower() == enum_val.value.lower():
+                mapped_status = enum_val
+                break
+        
+        if not mapped_status:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {', '.join(valid_statuses)}")
+        
+        listing.availability_status = mapped_status
+        listing.updated_at = datetime.now()
+        
+        db.add(listing)
+        db.commit()
+        db.refresh(listing)
+        
+        return listing
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating caregiver listing status: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to update status: {str(e)}")
 
 # Request endpoints
 @router.post("/requests", response_model=CaregiverRequestResponse)

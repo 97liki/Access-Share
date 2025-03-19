@@ -204,6 +204,7 @@ interface CreateDeviceListingRequest {
   description: string;
   location: string;
   contact_info: string;
+  available?: string;
 }
 
 interface CaregiverListing {
@@ -232,6 +233,13 @@ interface CaregiverListing {
   };
 }
 
+interface DeviceFilters {
+  device_type?: string;
+  location?: string;
+  available?: string;
+  is_mine?: string | boolean;
+}
+
 interface CaregiverFilters {
   service_type?: string;
   experience_level?: string;
@@ -242,6 +250,14 @@ interface CaregiverFilters {
   search?: string;
   skip?: number;
   limit?: number;
+  is_mine?: boolean;
+}
+
+interface BloodDonationFilters {
+  blood_type?: string;
+  location?: string;
+  status?: string;
+  is_mine?: string | boolean;
 }
 
 // Auth API
@@ -442,7 +458,7 @@ export const authApi = {
 
 // Blood Donation API
 export const bloodApi = {
-  getBloodDonations: async (params?: { blood_type?: string; location?: string }): Promise<ApiResponse<PaginatedResponse<BloodDonation>>> => {
+  getBloodDonations: async (params?: BloodDonationFilters): Promise<ApiResponse<PaginatedResponse<BloodDonation>>> => {
     try {
       // Add default pagination parameters
       const queryParams = {
@@ -515,11 +531,124 @@ export const bloodApi = {
     });
     return response.data;
   },
+
+  updateBloodDonationStatus: async (id: number, status: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await axios.patch(`${API_URL}/blood-donation/requests/${id}/status?status=${status}`, {}, {
+        headers: {
+          'X-User-Email': localStorage.getItem('userEmail') || ''
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating blood donation status:', error);
+      return {
+        success: false,
+        message: 'Failed to update blood donation status',
+        data: null
+      };
+    }
+  },
+};
+
+// Assistive Device API
+export const assistiveDeviceApi = {
+  getDevices: async (params?: DeviceFilters): Promise<ApiResponse<PaginatedResponse<any>>> => {
+    try {
+      // Add default pagination parameters
+      const queryParams = {
+        skip: 0,
+        limit: 100,
+        ...params
+      };
+      
+      const response = await axios.get(`${API_URL}/devices/listings`, {
+        params: queryParams,
+        headers: {
+          'X-User-Email': localStorage.getItem('userEmail') || ''
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching devices:', error);
+      return {
+        success: false,
+        message: 'Failed to fetch devices',
+        data: null
+      };
+    }
+  },
+
+  updateDeviceStatus: async (id: number, status: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await axios.patch(`${API_URL}/devices/listings/${id}/status`, {}, {
+        headers: {
+          'X-User-Email': localStorage.getItem('userEmail') || '',
+          'status': status
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating device status:', error);
+      return {
+        success: false,
+        message: 'Failed to update device status',
+        data: null
+      };
+    }
+  },
+};
+
+// Caregiver API
+export const caregiverApi = {
+  getCaregivers: async (params?: CaregiverFilters): Promise<ApiResponse<PaginatedResponse<any>>> => {
+    try {
+      // Add default pagination parameters
+      const queryParams = {
+        skip: 0,
+        limit: 100,
+        ...params
+      };
+      
+      const response = await axios.get(`${API_URL}/caregivers/listings`, {
+        params: queryParams,
+        headers: {
+          'X-User-Email': localStorage.getItem('userEmail') || ''
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching caregivers:', error);
+      return {
+        success: false,
+        message: 'Failed to fetch caregivers',
+        data: null
+      };
+    }
+  },
+
+  updateCaregiverStatus: async (id: number, status: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await axios.patch(`${API_URL}/caregivers/listings/${id}/status?status=${status}`, {}, {
+        headers: {
+          'X-User-Email': localStorage.getItem('userEmail') || ''
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating caregiver status:', error);
+      return {
+        success: false,
+        message: 'Failed to update caregiver status',
+        data: null
+      };
+    }
+  },
 };
 
 // Assistive Devices API
 export const devicesApi = {
-  getDevices: async (params?: { device_type?: string; location?: string }): Promise<ApiResponse<PaginatedResponse<DeviceListing>>> => {
+  getDevices: async (params?: { device_type?: string; location?: string; available?: string; user_id?: string; is_mine?: string }): Promise<ApiResponse<PaginatedResponse<DeviceListing>>> => {
     try {
       // Add default pagination parameters
       const queryParams = {
@@ -736,5 +865,23 @@ export const caregiversApi = {
       }
     });
     return response.data;
-  }
+  },
+
+  updateCaregiverStatus: async (id: number, status: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await axios.patch(`${API_URL}/caregivers/listings/${id}/status?status=${status}`, {}, {
+        headers: {
+          'X-User-Email': localStorage.getItem('userEmail') || ''
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating caregiver status:', error);
+      return {
+        success: false,
+        message: 'Failed to update caregiver status',
+        data: null
+      };
+    }
+  },
 };

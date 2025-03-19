@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -58,6 +58,8 @@ def get_device_listings(
     limit: int = 100,
     device_type: Optional[str] = None,
     location: Optional[str] = None,
+    available: Optional[str] = Query(None, description="Filter by availability status: 'available', 'pending', 'reserved', 'on_hold', 'taken', 'maintenance', 'inactive', or empty for all"),
+    is_mine: Optional[str] = Query(None, description="Filter for listings created by the current user (true/false)"),
     db: Session = Depends(get_db),
     email: str = Header(None, alias="X-User-Email")
 ):
@@ -76,6 +78,10 @@ def get_device_listings(
         query = query.filter(AssistiveDeviceListing.device_type == device_type)
     if location and location.strip():
         query = query.filter(AssistiveDeviceListing.location == location)
+    if available and available.strip():
+        query = query.filter(AssistiveDeviceListing.available == available)
+    if is_mine and is_mine.lower() == 'true':
+        query = query.filter(AssistiveDeviceListing.donor_id == user.id)
     
     # Get total count for pagination
     total = query.count()
@@ -116,6 +122,41 @@ def read_device_listing(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Device listing not found"
         )
+    return listing
+
+@router.patch("/listings/{listing_id}/status", response_model=AssistiveDeviceListingResponse)
+def update_device_listing_status(
+    listing_id: int,
+    status: str = Header(..., description="New status: 'available', 'pending', 'reserved', 'on_hold', 'taken', 'maintenance', 'inactive'"),
+    db: Session = Depends(get_db),
+    email: str = Header(None, alias="X-User-Email")
+):
+    """Update the availability status of a device listing"""
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    listing = db.query(AssistiveDeviceListing).filter(AssistiveDeviceListing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Device listing not found")
+    
+    if listing.donor_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this listing")
+    
+    valid_statuses = ['available', 'pending', 'reserved', 'on_hold', 'taken', 'maintenance', 'inactive']
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {', '.join(valid_statuses)}")
+    
+    listing.available = status
+    listing.updated_at = datetime.now()
+    
+    db.add(listing)
+    db.commit()
+    db.refresh(listing)
+    
     return listing
 
 # Request endpoints

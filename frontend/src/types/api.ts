@@ -197,6 +197,7 @@ export interface BloodDonation {
   available_until?: string;
   urgency?: string;
   notes?: string;
+  status?: string;
   created_at: string;
   updated_at: string;
   user?: User;

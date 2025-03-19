@@ -15,6 +15,7 @@ class BloodDonationRequestCreate(BloodDonationRequestBase):
 class BloodDonationRequestResponse(BloodDonationRequestBase):
     id: int
     user_id: int
+    status: str  # available, unavailable
     created_at: datetime
     updated_at: datetime
 
