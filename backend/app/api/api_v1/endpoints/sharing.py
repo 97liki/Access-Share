@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.sharing import Share, ShareableType
 from app.schemas.sharing import ShareCreate, ShareResponse, ShareStats
 from app.services.sharing import SharingService
+from app.services.notifications import notify_new_post  # Import the notification function
 
 router = APIRouter()
 
@@ -19,12 +20,17 @@ def create_share(
     """Create a new share"""
     sharing_service = SharingService(db)
     try:
-        return sharing_service.create_share(
+        new_share = sharing_service.create_share(
             user_id=current_user.id,
             shareable_type=share.shareable_type,
             shareable_id=share.shareable_id,
             platform=share.platform
         )
+
+        # Notify about the new post
+        notify_new_post(user_id=current_user.id, share=new_share)
+
+        return new_share
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -55,4 +61,4 @@ def get_user_shares(
         user_id=current_user.id,
         skip=skip,
         limit=limit
-    ) 
+    )

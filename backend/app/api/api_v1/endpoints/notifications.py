@@ -80,4 +80,13 @@ def update_notification_preferences(
         push_notifications=preferences.push_notifications,
         in_app_notifications=preferences.in_app_notifications,
         notification_types=preferences.notification_types
-    ) 
+    )
+
+def notify_new_post(post_id: int, user: User, db: Session):
+    """Trigger notification when a new post is created"""
+    notification_service = NotificationService(db)
+    notification_service.create_notification(
+        user_id=user.id,
+        type=NotificationType.NEW_POST,
+        message=f"New post created with ID {post_id}"
+    )

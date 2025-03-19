@@ -140,4 +140,14 @@ class NotificationService:
             title=f"New {review_type} Review",
             message=f"You have received a new {review_type} review",
             link=f"/{review_type}/reviews/{review_id}"
-        ) 
+        )
+    
+    def notify_new_post(self, user: User, post_id: int) -> None:
+        """Create notification for a new post"""
+        self.create_notification(
+            user_id=user.id,
+            type=NotificationType.NEW_POST,
+            title="New Post Available",
+            message="A new post has been published! Check it out.",
+            link=f"/posts/{post_id}"
+        )

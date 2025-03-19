@@ -11,6 +11,7 @@ class NotificationType(str, enum.Enum):
     DEVICE_REVIEW = "device_review"
     SHARE = "share"
     SYSTEM = "system"
+    NEW_POST = "new_post"  # ✅ Added NEW_POST
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -38,7 +39,7 @@ class NotificationPreference(Base):
     in_app_notifications = Column(Boolean, default=True)
     notification_types = Column(JSON, nullable=False)  # JSON object of notification type preferences
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    user = relationship("User") 
+    user = relationship("User")
