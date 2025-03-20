@@ -262,20 +262,63 @@ interface BloodDonationFilters {
   is_mine?: string | boolean;
 }
 
+interface DeviceRequestListing {
+  id: number;
+  requester_id: number;
+  device_type: string;
+  device_name: string;
+  description: string;
+  urgency: 'high' | 'medium' | 'low';
+  location: string;
+  contact_info: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CreateDeviceRequestListingData {
+  device_type: string;
+  device_name: string;
+  description: string;
+  urgency: 'high' | 'medium' | 'low';
+  location: string;
+  contact_info: string;
+}
+
+interface DeviceRequestFilters {
+  device_type?: string;
+  location?: string;
+  urgency?: string;
+  status?: string;
+  is_mine?: string | boolean;
+}
+
 // Auth API
 export const authApi = {
   login: async (data: LoginData): Promise<User> => {
     try {
       console.log('API: Attempting login API call to', `${API_URL}/auth/login`);
-      console.log('API: Login request payload:', JSON.stringify(data));
-      
-      const response = await axios.post(`${API_URL}/auth/login`, data);
+      console.log('API: Login request payload:', JSON.stringify({ email: data.email, password: "******" }));
+
+      // Add better debugging for network
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);  // 15 second timeout
+
+      const response = await axios.post(`${API_URL}/auth/login`, data, {
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      clearTimeout(timeoutId);
+
       console.log('API: Login HTTP status:', response.status);
-      console.log('API: Login raw response:', response);
+      console.log('API: Login response headers:', response.headers);
+      console.log('API: Login response data structure:', Object.keys(response.data || {}));
       
       // The API is returning the user data directly without wrapping it in a data property
       const userData = response.data;
-      console.log('API: Login user data:', userData);
       
       // Ensure we handle the response correctly - check for direct user properties
       if (userData && userData.email) {
@@ -284,18 +327,22 @@ export const authApi = {
         // Save auth state to localStorage
         localStorage.setItem('userEmail', userData.email);
         console.log('API: User email saved to localStorage:', userData.email);
-        console.log('API: Verifying localStorage value:', localStorage.getItem('userEmail'));
-        return userData; // Return the unwrapped user data directly
+        return userData;
       } else {
         console.error('API: Unexpected API response structure:', userData);
-        throw new Error('Unexpected response from server');
+        throw new Error('Login failed: Invalid response from server. Contact support if the issue persists.');
       }
     } catch (error: any) {
       console.error('API: Login API error details:', error);
       
+      if (error.name === 'AbortError') {
+        console.error('API: Login request timed out');
+        throw new Error('Login request timed out. Please check your internet connection and try again.');
+      }
+      
       if (error.request && !error.response) {
         console.error('API: Network error - no response received');
-        throw new Error('Network error. Please check your internet connection and try again.');
+        throw new Error('Network error. Please check if the server is running and your internet connection is working.');
       }
       
       // Handle specific API error responses
@@ -304,11 +351,15 @@ export const authApi = {
         console.error('API: Error response data:', error.response.data);
         
         if (error.response.status === 401) {
-          throw new Error('Incorrect password');
+          throw new Error('Incorrect email or password. Please try again.');
         } else if (error.response.status === 404) {
           throw new Error('User not found. Please register first.');
+        } else if (error.response.status === 429) {
+          throw new Error('Too many login attempts. Please try again later.');
         } else if (error.response.data?.detail) {
           throw new Error(error.response.data.detail);
+        } else if (error.response.status >= 500) {
+          throw new Error('Server error. Please try again later or contact support.');
         }
       }
       
@@ -653,67 +704,136 @@ export const caregiverApi = {
 
 // Assistive Devices API
 export const devicesApi = {
-  getDevices: async (params?: { device_type?: string; location?: string; available?: string; user_id?: string; is_mine?: string }): Promise<ApiResponse<PaginatedResponse<DeviceListing>>> => {
+  getDevices: async (filters?: DeviceFilters): Promise<DeviceListing[]> => {
     try {
-      // Add default pagination parameters
-      const queryParams = {
-        skip: 0,
-        limit: 100,
-        ...params
-      };
-      
-      const response = await axios.get(`${API_URL}/devices/listings`, {
-        params: queryParams,
-        headers: {
-          'X-User-Email': localStorage.getItem('userEmail') || ''
-        }
-      });
-      return response.data;
+      console.log('API: Fetching devices with filters:', filters);
+      const response = await axios.get(`${API_URL}/assistive-devices/`, { params: filters });
+      console.log('API: Devices response:', response.data);
+      return response.data.data || [];
     } catch (error) {
-      console.error('Error fetching devices:', error);
-      return {
-        success: false,
-        message: 'Failed to fetch devices',
-        data: null
-      };
+      console.error('API Error in getDevices:', error);
+      throw error;
     }
   },
-
-  getDevice: async (id: number): Promise<ApiResponse<DeviceListing>> => {
-    const response = await axios.get(`${API_URL}/devices/listings/${id}`, {
-      headers: {
-        'X-User-Email': localStorage.getItem('userEmail') || ''
-      }
-    });
-    return response.data;
+  
+  getDevice: async (id: number): Promise<DeviceListing> => {
+    try {
+      console.log('API: Fetching device with ID:', id);
+      const response = await axios.get(`${API_URL}/assistive-devices/${id}`);
+      console.log('API: Device response:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('API Error in getDevice:', error);
+      throw error;
+    }
   },
-
-  createDevice: async (data: CreateDeviceListingRequest): Promise<ApiResponse<DeviceListing>> => {
-    const response = await axios.post(`${API_URL}/devices/listings`, data, {
-      headers: {
-        'X-User-Email': localStorage.getItem('userEmail') || ''
-      }
-    });
-    return response.data;
+  
+  createDevice: async (data: CreateDeviceListingRequest): Promise<DeviceListing> => {
+    try {
+      console.log('API: Creating device listing with data:', data);
+      const response = await axios.post(`${API_URL}/assistive-devices/`, data);
+      console.log('API: Create device response:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('API Error in createDevice:', error);
+      throw error;
+    }
   },
-
-  updateDevice: async (id: number, data: Partial<CreateDeviceListingRequest>): Promise<ApiResponse<DeviceListing>> => {
-    const response = await axios.patch(`${API_URL}/devices/listings/${id}`, data, {
-      headers: {
-        'X-User-Email': localStorage.getItem('userEmail') || ''
-      }
-    });
-    return response.data;
+  
+  updateDevice: async (id: number, data: Partial<CreateDeviceListingRequest>): Promise<DeviceListing> => {
+    try {
+      console.log('API: Updating device listing with ID:', id, 'and data:', data);
+      const response = await axios.put(`${API_URL}/assistive-devices/${id}`, data);
+      console.log('API: Update device response:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('API Error in updateDevice:', error);
+      throw error;
+    }
   },
-
-  deleteDevice: async (id: number): Promise<ApiResponse<void>> => {
-    const response = await axios.delete(`${API_URL}/devices/listings/${id}`, {
-      headers: {
-        'X-User-Email': localStorage.getItem('userEmail') || ''
-      }
-    });
-    return response.data;
+  
+  deleteDevice: async (id: number): Promise<void> => {
+    try {
+      console.log('API: Deleting device listing with ID:', id);
+      await axios.delete(`${API_URL}/assistive-devices/${id}`);
+      console.log('API: Delete device success');
+    } catch (error) {
+      console.error('API Error in deleteDevice:', error);
+      throw error;
+    }
   },
+  
+  // New device request functions
+  getDeviceRequests: async (filters?: DeviceRequestFilters): Promise<DeviceRequestListing[]> => {
+    try {
+      console.log('API: Fetching device requests with filters:', filters);
+      const response = await axios.get(`${API_URL}/assistive-devices/requests/`, { params: filters });
+      console.log('API: Device requests response:', response.data);
+      return response.data.data || [];
+    } catch (error) {
+      console.error('API Error in getDeviceRequests:', error);
+      throw error;
+    }
+  },
+  
+  getDeviceRequest: async (id: number): Promise<DeviceRequestListing> => {
+    try {
+      console.log('API: Fetching device request with ID:', id);
+      const response = await axios.get(`${API_URL}/assistive-devices/requests/${id}`);
+      console.log('API: Device request response:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('API Error in getDeviceRequest:', error);
+      throw error;
+    }
+  },
+  
+  createDeviceRequest: async (data: CreateDeviceRequestListingData): Promise<DeviceRequestListing> => {
+    try {
+      console.log('API: Creating device request with data:', data);
+      const response = await axios.post(`${API_URL}/assistive-devices/requests/`, data);
+      console.log('API: Create device request response:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('API Error in createDeviceRequest:', error);
+      throw error;
+    }
+  },
+  
+  updateDeviceRequest: async (id: number, data: Partial<CreateDeviceRequestListingData>): Promise<DeviceRequestListing> => {
+    try {
+      console.log('API: Updating device request with ID:', id, 'and data:', data);
+      const response = await axios.put(`${API_URL}/assistive-devices/requests/${id}`, data);
+      console.log('API: Update device request response:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('API Error in updateDeviceRequest:', error);
+      throw error;
+    }
+  },
+  
+  deleteDeviceRequest: async (id: number): Promise<void> => {
+    try {
+      console.log('API: Deleting device request with ID:', id);
+      await axios.delete(`${API_URL}/assistive-devices/requests/${id}`);
+      console.log('API: Delete device request success');
+    } catch (error) {
+      console.error('API Error in deleteDeviceRequest:', error);
+      throw error;
+    }
+  },
+  
+  respondToDeviceRequest: async (requestId: number, data: { message: string, status: string }): Promise<any> => {
+    try {
+      console.log('API: Responding to device request with ID:', requestId, 'and data:', data);
+      const response = await axios.post(`${API_URL}/assistive-devices/requests/${requestId}/responses`, data);
+      console.log('API: Response to device request:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('API Error in respondToDeviceRequest:', error);
+      throw error;
+    }
+  }
 };
 
 // Caregivers API

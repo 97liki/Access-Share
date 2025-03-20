@@ -16,10 +16,31 @@ const Navbar = () => {
     { name: 'Privacy Policy', href: '/privacy' },
   ];
 
-  const featureLinks = [
-    { name: 'Blood Donation', href: '/blood-donation' },
-    { name: 'Assistive Devices', href: '/assistive-devices' },
-    { name: 'Caregivers', href: '/caregivers' },
+  const serviceMenus = [
+    { 
+      name: 'Blood Donation', 
+      options: [
+        { name: 'Donate Blood', href: '/blood-donation/donate', implemented: true },
+        { name: 'Request Blood', href: '/blood-donation/request', implemented: true },
+        { name: 'View Blood Listings', href: '/blood-donation', implemented: true }
+      ]
+    },
+    { 
+      name: 'Assistive Devices', 
+      options: [
+        { name: 'Donate Devices', href: '/devices/donate', implemented: true },
+        { name: 'Request Devices', href: '/devices/make-request', implemented: true },
+        { name: 'View Device Listings', href: '/devices/view-requests', implemented: true }
+      ] 
+    },
+    { 
+      name: 'Caregivers', 
+      options: [
+        { name: 'Offer Care Services', href: '/caregivers/offer', implemented: true },
+        { name: 'Find a Caregiver', href: '/caregivers/find', implemented: true },
+        { name: 'View Caregiver Listings', href: '/caregivers', implemented: true }
+      ] 
+    },
   ];
 
   const helpLinks = [
@@ -54,26 +75,46 @@ const Navbar = () => {
               <span className="text-2xl font-bold">AccessShare</span>
             </Link>
 
-            {/* Feature Links - Always visible */}
+            {/* Service Dropdown Menus */}
             <div className="hidden sm:ml-6 sm:flex sm:space-x-4 sm:items-center">
-              {featureLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    location.pathname === link.href || location.pathname.startsWith(`${link.href}/`) 
-                      ? 'text-primary-600 bg-primary-50' 
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'
-                  }`}
-                  onClick={(e) => {
-                    // If we're already on the page, prevent default to avoid unnecessary re-renders
-                    if (location.pathname === link.href) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  {link.name}
-                </Link>
+              {serviceMenus.map((service) => (
+                <Menu as="div" key={service.name} className="relative">
+                  <Menu.Button 
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      location.pathname.includes(service.name.toLowerCase().replace(' ', '-')) 
+                        ? 'text-primary-600 bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'
+                    }`}
+                  >
+                    {service.name} ▼
+                  </Menu.Button>
+                  <Transition
+                    as={Fragment}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform opacity-0 scale-95"
+                    enterTo="transform opacity-100 scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform opacity-100 scale-100"
+                    leaveTo="transform opacity-0 scale-95"
+                  >
+                    <Menu.Items className="absolute left-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                      {service.options.map((option) => (
+                        <Menu.Item key={option.name}>
+                          {({ active }) => (
+                            <Link
+                              to={option.implemented ? option.href : (option.name.toLowerCase().includes('request') ? '/' : option.href)}
+                              className={`${
+                                active ? 'bg-primary-50 text-primary-600' : 'text-gray-700'
+                              } block px-4 py-2 text-sm`}
+                            >
+                              {option.name}
+                            </Link>
+                          )}
+                        </Menu.Item>
+                      ))}
+                    </Menu.Items>
+                  </Transition>
+                </Menu>
               ))}
             </div>
           </div>

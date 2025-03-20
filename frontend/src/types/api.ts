@@ -119,6 +119,32 @@ export interface DeviceRequest {
   updated_at: string;
 }
 
+export interface DeviceRequestListing {
+  id: number;
+  requester_id: number;
+  device_type: string;
+  device_name: string;
+  description: string;
+  urgency: 'high' | 'medium' | 'low';
+  location: string;
+  contact_info: string;
+  status: 'open' | 'in_progress' | 'fulfilled' | 'closed';
+  created_at: string;
+  updated_at: string;
+  user?: User;
+}
+
+export interface DeviceRequestResponse {
+  id: number;
+  request_id: number;
+  responder_id: number;
+  message: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  updated_at: string;
+  responder?: User;
+}
+
 // Settings Types
 export interface UserSettings {
   account: {

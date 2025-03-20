@@ -14,6 +14,8 @@ import AssistiveDevices from './pages/AssistiveDevices';
 import BloodDonation from './pages/BloodDonation';
 import Caregivers from './pages/Caregivers';
 import CreateCaregiver from './pages/CreateCaregiver';
+import DeviceRequestPage from './pages/DeviceRequestPage';
+import DeviceRequestsListPage from './pages/DeviceRequestsListPage';
 
 // Static Pages
 import Mission from './pages/static/Mission';
@@ -95,6 +97,13 @@ const AnimatedRoutes = () => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/create-caregiver" element={<CreateCaregiver />} />
+        </Route>
+
+        {/* Additional routes for device requests and viewing device requests */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/devices/make-request" element={<DeviceRequestPage />} />
+          <Route path="/devices/view-requests" element={<DeviceRequestsListPage />} />
+          <Route path="/devices/requests/:id" element={<DeviceRequestPage />} />
         </Route>
 
         {/* Fallback route */}

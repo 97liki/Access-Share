@@ -9,10 +9,11 @@ import bgPattern from '../assets/images/backgrounds/pattern-light.svg';
 import devicesIcon from '../assets/images/icons/features/devices.svg';
 import bloodIcon from '../assets/images/icons/features/blood.svg';
 import caregiverIcon from '../assets/images/icons/features/caregiver.svg';
+import requestIcon from '../assets/images/icons/features/request.svg';
 
 const Home = () => {
   const { user, isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<'all' | 'donate' | 'receive'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'donate' | 'receive' | 'request'>('all');
   
   const services = [
     {
@@ -20,36 +21,45 @@ const Home = () => {
       title: 'Blood Donation',
       description: 'Connect with blood donors or request blood donations',
       icon: bloodIcon,
-      donorLink: '/blood-donation/donate',
-      donorText: 'Donate Blood',
-      donorDescription: 'Register as a blood donor and help save lives in your community',
-      recipientLink: '/blood-donation/request',
-      recipientText: 'Request Blood',
-      recipientDescription: 'Find blood donors that match your requirements',
+      donateLink: '/blood-donation/donate',
+      donateText: 'Donate Blood',
+      donateDescription: 'Register as a blood donor and help save lives in your community',
+      requestLink: '/blood-donation/make-request',
+      requestText: 'Request Blood',
+      requestDescription: 'Submit a request for blood donation based on your needs',
+      viewLink: '/blood-donation/view-requests',
+      viewText: 'View Listings',
+      viewDescription: 'Browse available blood donations and requests in your area',
     },
     {
       id: 'devices',
       title: 'Assistive Devices',
       description: 'Connect with donors offering mobility aids, hearing devices, and more',
       icon: devicesIcon,
-      donorLink: '/devices/donate',
-      donorText: 'Donate Devices',
-      donorDescription: 'Donate medical equipment and assistive devices to those in need',
-      recipientLink: '/devices/request',
-      recipientText: 'Request Devices',
-      recipientDescription: 'Find assistive devices and medical equipment you need',
+      donateLink: '/devices/donate',
+      donateText: 'Donate Devices',
+      donateDescription: 'Donate medical equipment and assistive devices to those in need',
+      requestLink: '/devices/make-request',
+      requestText: 'Request Devices',
+      requestDescription: 'Submit a request for assistive devices based on your needs',
+      viewLink: '/devices/view-requests',
+      viewText: 'View Listings',
+      viewDescription: 'Browse available devices and requests in your area',
     },
     {
       id: 'caregivers',
       title: 'Caregivers',
       description: 'Connect with experienced caregivers or offer your services',
       icon: caregiverIcon,
-      donorLink: '/caregivers/offer',
-      donorText: 'Offer Care',
-      donorDescription: 'Register as a caregiver and offer your services to those in need',
-      recipientLink: '/caregivers/find',
-      recipientText: 'Find Caregivers',
-      recipientDescription: 'Find experienced caregivers that match your requirements',
+      donateLink: '/caregivers/offer',
+      donateText: 'Offer Care',
+      donateDescription: 'Register as a caregiver and offer your services to those in need',
+      requestLink: '/caregivers/make-request',
+      requestText: 'Request Care',
+      requestDescription: 'Submit a request for caregiving services based on your needs',
+      viewLink: '/caregivers/view-requests',
+      viewText: 'View Listings',
+      viewDescription: 'Browse available caregivers and requests in your area',
     },
   ];
 
@@ -175,7 +185,17 @@ const Home = () => {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                I Need Assistance
+                I Want to Request
+              </button>
+              <button
+                onClick={() => setActiveTab('request')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                  activeTab === 'request'
+                    ? 'bg-white text-blue-700 shadow'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                I Want to View
               </button>
             </nav>
           </div>
@@ -189,14 +209,15 @@ const Home = () => {
                   variants={itemVariants}
                   className={`relative ${
                     (activeTab === 'all' || 
-                    (activeTab === 'donate' && service.donorLink) || 
-                    (activeTab === 'receive' && service.recipientLink))
+                    (activeTab === 'donate' && service.donateLink) || 
+                    (activeTab === 'receive' && service.requestLink) ||
+                    (activeTab === 'request' && service.requestLink))
                       ? 'block'
                       : 'hidden'
                   }`}
                 >
                   {activeTab === 'all' ? (
-                    // Show both options for each service
+                    // Show all three options for each service
                     <div className="bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
                       <div className="p-6">
                         <div className="flex items-center mb-4">
@@ -208,55 +229,79 @@ const Home = () => {
                         <p className="text-base text-gray-500 mb-6">
                           {service.description}
                         </p>
-                        <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="grid grid-cols-3 gap-3 mt-4">
                           <Link
-                            to={service.donorLink}
+                            to={service.donateLink}
                             className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                           >
-                            {service.donorText}
+                            {service.donateText}
                           </Link>
                           <Link
-                            to={service.recipientLink}
-                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
+                            to={service.requestLink}
+                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
                           >
-                            {service.recipientText}
+                            {service.requestText}
+                          </Link>
+                          <Link
+                            to={service.viewLink}
+                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200"
+                          >
+                            {service.viewText}
                           </Link>
                         </div>
                       </div>
                     </div>
                   ) : activeTab === 'donate' ? (
-                    // Show only donor option
+                    // Show only donate option
                     <Link
-                      to={service.donorLink}
+                      to={service.donateLink}
                       className="block h-full bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-50 transition-colors duration-200"
                     >
                       <div className="p-6">
                         <div className="flex items-center mb-4">
                           <img src={service.icon} alt={service.title} className="w-12 h-12 mr-4" />
                           <h3 className="text-lg leading-6 font-medium text-gray-900">
-                            {service.donorText}
+                            {service.donateText}
                           </h3>
                         </div>
                         <p className="text-base text-gray-500">
-                          {service.donorDescription}
+                          {service.donateDescription}
+                        </p>
+                      </div>
+                    </Link>
+                  ) : activeTab === 'receive' ? (
+                    // Show only request option
+                    <Link
+                      to={service.requestLink}
+                      className="block h-full bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="p-6">
+                        <div className="flex items-center mb-4">
+                          <img src={requestIcon} alt={service.title} className="w-12 h-12 mr-4" />
+                          <h3 className="text-lg leading-6 font-medium text-gray-900">
+                            {service.requestText}
+                          </h3>
+                        </div>
+                        <p className="text-base text-gray-500">
+                          {service.requestDescription}
                         </p>
                       </div>
                     </Link>
                   ) : (
-                    // Show only recipient option
+                    // Show only view option
                     <Link
-                      to={service.recipientLink}
+                      to={service.viewLink}
                       className="block h-full bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-50 transition-colors duration-200"
                     >
                       <div className="p-6">
                         <div className="flex items-center mb-4">
                           <img src={service.icon} alt={service.title} className="w-12 h-12 mr-4" />
                           <h3 className="text-lg leading-6 font-medium text-gray-900">
-                            {service.recipientText}
+                            {service.viewText}
                           </h3>
                         </div>
                         <p className="text-base text-gray-500">
-                          {service.recipientDescription}
+                          {service.viewDescription}
                         </p>
                       </div>
                     </Link>
