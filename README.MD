@@ -1,6 +1,9 @@
 # AccessShare
 
-AccessShare is a platform that connects people in need with those who can help. Whether you need blood donations, assistive devices, or caregiver services, we're here to make those connections happen.
+AccessShare is a comprehensive healthcare platform that connects people in need with those who can help. Whether you need blood donations, assistive devices, or caregiver services, we're here to make those connections happen.
+
+This project won the second prize in the Desis Ascend Educare 2024 Program by DE Shaw.
+
 
 ## Features
 
